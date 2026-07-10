@@ -12,3 +12,6 @@ wheels/
 .idea
 **/.DS_Store
 backend/storage/
+.env.dev
+.env
+

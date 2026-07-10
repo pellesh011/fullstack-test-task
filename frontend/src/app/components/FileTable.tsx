@@ -1,6 +1,7 @@
 "use client";
 
 import { Badge, Button, Spinner, Table } from "react-bootstrap";
+import { API_BASE } from "./api";
 import type { FileItem } from "./types";
 import { formatDate, formatSize, getProcessingVariant } from "./utils";
 
@@ -69,7 +70,7 @@ export function FileTable({ files, isLoading }: Props) {
                 <td className="text-nowrap">
                   <Button
                     as="a"
-                    href={`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}/files/${file.id}/download`}
+                    href={`${API_BASE}/files/${file.id}/download`}
                     variant="outline-primary"
                     size="sm"
                   >

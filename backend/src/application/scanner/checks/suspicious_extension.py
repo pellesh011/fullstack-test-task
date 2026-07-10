@@ -1,15 +1,14 @@
 from pathlib import Path
 
+from src.core.config import settings
 from src.domain.interfaces.scan_check import ScanCheck
 from src.models import ScanResult, StoredFile
 
 
 class SuspiciousExtensionCheck(ScanCheck):
-    SUSPICIOUS_EXTENSIONS = {".exe", ".bat", ".cmd", ".sh", ".js"}
-
     def check(self, file: StoredFile) -> ScanResult | None:
         ext = Path(file.original_name).suffix.lower()
-        if ext in self.SUSPICIOUS_EXTENSIONS:
+        if ext in settings.suspicious_extensions:
             return ScanResult(
                 file_id=file.id,
                 check_name="suspicious_extension",

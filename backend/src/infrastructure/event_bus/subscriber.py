@@ -9,8 +9,6 @@ from src.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-_RECONNECT_DELAY = 3.0
-
 
 def _listen():
     while True:
@@ -20,9 +18,9 @@ def _listen():
         except ConnectionError:
             logger.warning(
                 "event subscriber: redis unavailable, retrying in %s s",
-                _RECONNECT_DELAY,
+                settings.redis_reconnect_delay,
             )
-            threading.Event().wait(_RECONNECT_DELAY)
+            threading.Event().wait(settings.redis_reconnect_delay)
             continue
 
         logger.info("event subscriber: listening for file_events")
