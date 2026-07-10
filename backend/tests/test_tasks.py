@@ -3,8 +3,8 @@ from unittest.mock import patch
 import pytest
 import src.tasks as tasks_mod
 from sqlalchemy import select
-
 from src.models import Alert, ScanResult, StoredFile
+
 
 @pytest.fixture(autouse=True)
 def no_delay():

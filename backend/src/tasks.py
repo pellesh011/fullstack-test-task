@@ -21,7 +21,11 @@ from src.infrastructure.repositories.scan_result_repository import (
 from src.infrastructure.storage.local_file_storage import LocalFileStorage
 from src.models import ScanResult
 
-celery_app = Celery("file_tasks", broker=settings.resolved_redis_url, backend=settings.resolved_redis_url)
+celery_app = Celery(
+    "file_tasks",
+    broker=settings.resolved_redis_url,
+    backend=settings.resolved_redis_url,
+)
 
 _db = DatabaseSessionManager()
 _storage: FileStorage = LocalFileStorage(settings.resolved_storage_dir)
