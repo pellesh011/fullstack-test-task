@@ -13,17 +13,38 @@ from src.models import Alert, StoredFile
 BASE_DIR = Path(__file__).resolve().parent.parent
 STORAGE_DIR = BASE_DIR / "storage" / "files"
 STORAGE_DIR.mkdir(parents=True, exist_ok=True)
-DB_URL = (
-    f"postgresql+asyncpg://{os.environ.get('POSTGRES_USER')}:"
-    f"{os.environ.get('POSTGRES_PASSWORD')}@{os.environ.get('POSTGRES_HOST')}:"
-    f"{os.environ.get('PGPORT')}/{os.environ.get('POSTGRES_DB')}"
-)
-engine = create_async_engine(DB_URL)
-async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
+
+
+def get_db_url() -> str:
+    return (
+        f"postgresql+asyncpg://{os.environ['POSTGRES_USER']}:"
+        f"{os.environ['POSTGRES_PASSWORD']}@{os.environ['POSTGRES_HOST']}:"
+        f"{os.environ.get('PGPORT', '5432')}/{os.environ['POSTGRES_DB']}"
+    )
+
+
+_engine = None
+
+
+def get_engine():
+    global _engine
+    if _engine is None:
+        _engine = create_async_engine(get_db_url())
+    return _engine
+
+
+_session_maker = None
+
+
+def get_session_maker():
+    global _session_maker
+    if _session_maker is None:
+        _session_maker = async_sessionmaker(get_engine(), expire_on_commit=False)
+    return _session_maker
 
 
 async def list_files() -> list[StoredFile]:
-    async with async_session_maker() as session:
+    async with get_session_maker()() as session:
         result = await session.execute(
             select(StoredFile).order_by(StoredFile.created_at.desc())
         )
@@ -31,13 +52,13 @@ async def list_files() -> list[StoredFile]:
 
 
 async def list_alerts() -> list[Alert]:
-    async with async_session_maker() as session:
+    async with get_session_maker()() as session:
         result = await session.execute(select(Alert).order_by(Alert.created_at.desc()))
         return list(result.scalars().all())
 
 
 async def get_file(file_id: str) -> StoredFile:
-    async with async_session_maker() as session:
+    async with get_session_maker()() as session:
         file_item = await session.get(StoredFile, file_id)
         if not file_item:
             raise HTTPException(
@@ -70,7 +91,7 @@ async def create_file(title: str, upload_file: UploadFile) -> StoredFile:
         size=len(content),
         processing_status="uploaded",
     )
-    async with async_session_maker() as session:
+    async with get_session_maker()() as session:
         session.add(file_item)
         await session.commit()
         await session.refresh(file_item)
@@ -78,7 +99,7 @@ async def create_file(title: str, upload_file: UploadFile) -> StoredFile:
 
 
 async def update_file(file_id: str, title: str) -> StoredFile:
-    async with async_session_maker() as session:
+    async with get_session_maker()() as session:
         file_item = await session.get(StoredFile, file_id)
         if not file_item:
             raise HTTPException(
@@ -91,7 +112,7 @@ async def update_file(file_id: str, title: str) -> StoredFile:
 
 
 async def delete_file(file_id: str) -> None:
-    async with async_session_maker() as session:
+    async with get_session_maker()() as session:
         file_item = await session.get(StoredFile, file_id)
         if not file_item:
             raise HTTPException(
@@ -116,7 +137,7 @@ async def get_file_path(file_id: str) -> tuple[StoredFile, Path]:
 
 async def create_alert(file_id: str, level: str, message: str) -> Alert:
     alert = Alert(file_id=file_id, level=level, message=message)
-    async with async_session_maker() as session:
+    async with get_session_maker()() as session:
         session.add(alert)
         await session.commit()
         await session.refresh(alert)
