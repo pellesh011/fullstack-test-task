@@ -1,26 +1,29 @@
 from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 from fastapi import HTTPException
 from sqlalchemy import select
-import src.service as svc
 
-from src.models import ScanResult, StoredFile
-from src.service import (
-    create_alert,
-    create_file,
-    delete_file,
-    get_file,
-    get_file_path,
-    list_alerts,
-    list_files,
-    list_scan_results,
-    update_file,
+from src.application.services.alert_service import AlertService
+from src.application.services.file_service import FileService
+from src.infrastructure.repositories.alert_repository import SQLAlertRepository
+from src.infrastructure.repositories.file_repository import SQLFileRepository
+from src.infrastructure.repositories.scan_result_repository import (
+    SQLScanResultRepository,
 )
+from src.infrastructure.storage.local_file_storage import LocalFileStorage
+from src.models import ScanResult, StoredFile
+
+pytestmark = pytest.mark.asyncio
 
 
 class TestListFiles:
     async def test_empty(self, db_session):
-        result = await list_files()
+        svc = FileService(
+            file_repo=SQLFileRepository(db_session),
+            file_storage=MagicMock(),
+        )
+        result = await svc.list_files()
         assert result == []
 
     async def test_with_files(self, db_session):
@@ -36,41 +39,50 @@ class TestListFiles:
         )
         await db_session.commit()
 
-        result = await list_files()
+        svc = FileService(
+            file_repo=SQLFileRepository(db_session),
+            file_storage=MagicMock(),
+        )
+        result = await svc.list_files()
         assert len(result) == 1
         assert result[0].title == "test"
 
     async def test_ordered_by_created_at_desc(self, db_session):
-        db_session.add(
-            StoredFile(
-                id="f2",
-                title="second",
-                original_name="b.txt",
-                stored_name="f2.txt",
-                mime_type="text/plain",
-                size=1,
-            )
+        svc = FileService(
+            file_repo=SQLFileRepository(db_session),
+            file_storage=MagicMock(),
         )
-        db_session.add(
-            StoredFile(
-                id="f1",
-                title="first",
-                original_name="a.txt",
-                stored_name="f1.txt",
-                mime_type="text/plain",
-                size=1,
-            )
+        db_session.add_all(
+            [
+                StoredFile(
+                    id="f2",
+                    title="second",
+                    original_name="b.txt",
+                    stored_name="f2.txt",
+                    mime_type="text/plain",
+                    size=1,
+                ),
+                StoredFile(
+                    id="f1",
+                    title="first",
+                    original_name="a.txt",
+                    stored_name="f1.txt",
+                    mime_type="text/plain",
+                    size=1,
+                ),
+            ]
         )
         await db_session.commit()
 
-        result = await list_files()
+        result = await svc.list_files()
         assert result[0].title == "second"
         assert result[1].title == "first"
 
 
 class TestListAlerts:
     async def test_empty(self, db_session):
-        result = await list_alerts()
+        svc = AlertService(alert_repo=SQLAlertRepository(db_session))
+        result = await svc.list_alerts()
         assert result == []
 
     async def test_with_alerts(self, db_session):
@@ -85,15 +97,22 @@ class TestListAlerts:
             )
         )
         await db_session.commit()
-        await create_alert("af1", "info", "test alert")
 
-        result = await list_alerts()
+        alert_repo = SQLAlertRepository(db_session)
+        svc = AlertService(alert_repo=alert_repo)
+        await svc.create_alert("af1", "info", "test alert")
+
+        result = await svc.list_alerts()
         assert len(result) == 1
         assert result[0].level == "info"
 
 
 class TestGetFile:
     async def test_existing(self, db_session):
+        svc = FileService(
+            file_repo=SQLFileRepository(db_session),
+            file_storage=MagicMock(),
+        )
         db_session.add(
             StoredFile(
                 id="gf1",
@@ -106,63 +125,93 @@ class TestGetFile:
         )
         await db_session.commit()
 
-        result = await get_file("gf1")
+        result = await svc.get_file("gf1")
         assert result.id == "gf1"
         assert result.title == "found"
 
-    async def test_not_found(self):
+    async def test_not_found(self, db_session):
+        svc = FileService(
+            file_repo=SQLFileRepository(db_session),
+            file_storage=MagicMock(),
+        )
         with pytest.raises(HTTPException) as exc:
-            await get_file("nonexistent")
+            await svc.get_file("nonexistent")
         assert exc.value.status_code == 404
 
 
 class TestCreateFile:
     async def test_create_text_file(self, db_session):
+        from tests.conftest import TEST_STORAGE_DIR
+
+        svc = FileService(
+            file_repo=SQLFileRepository(db_session),
+            file_storage=LocalFileStorage(TEST_STORAGE_DIR),
+        )
         mock = MagicMock()
         mock.filename = "hello.txt"
         mock.content_type = "text/plain"
         mock.read = AsyncMock(return_value=b"hello world")
 
-        result = await create_file("my file", mock)
+        result = await svc.create_file("my file", mock)
         assert result.title == "my file"
         assert result.size == 11
         assert result.processing_status == "uploaded"
 
-        stored_path = svc.STORAGE_DIR / result.stored_name
+        stored_path = TEST_STORAGE_DIR / result.stored_name
         assert stored_path.exists()
         assert stored_path.read_bytes() == b"hello world"
 
-    async def test_empty_file_raises(self):
+    async def test_empty_file_raises(self, db_session):
+        svc = FileService(
+            file_repo=SQLFileRepository(db_session),
+            file_storage=MagicMock(),
+        )
         mock = MagicMock()
         mock.filename = "empty.txt"
         mock.content_type = "text/plain"
         mock.read = AsyncMock(return_value=b"")
 
         with pytest.raises(HTTPException) as exc:
-            await create_file("empty", mock)
+            await svc.create_file("empty", mock)
         assert exc.value.status_code == 400
 
     async def test_no_filename(self, db_session):
+        from tests.conftest import TEST_STORAGE_DIR
+
+        svc = FileService(
+            file_repo=SQLFileRepository(db_session),
+            file_storage=LocalFileStorage(TEST_STORAGE_DIR),
+        )
         mock = MagicMock()
         mock.filename = None
         mock.content_type = "text/plain"
         mock.read = AsyncMock(return_value=b"content")
 
-        result = await create_file("no name", mock)
+        result = await svc.create_file("no name", mock)
         assert result.original_name == result.stored_name
 
     async def test_no_content_type(self, db_session):
+        from tests.conftest import TEST_STORAGE_DIR
+
+        svc = FileService(
+            file_repo=SQLFileRepository(db_session),
+            file_storage=LocalFileStorage(TEST_STORAGE_DIR),
+        )
         mock = MagicMock()
         mock.filename = "file.txt"
         mock.content_type = None
         mock.read = AsyncMock(return_value=b"content")
 
-        result = await create_file("no mime", mock)
+        result = await svc.create_file("no mime", mock)
         assert result.mime_type in ("text/plain", "application/octet-stream")
 
 
 class TestUpdateFile:
     async def test_update_title(self, db_session):
+        svc = FileService(
+            file_repo=SQLFileRepository(db_session),
+            file_storage=MagicMock(),
+        )
         db_session.add(
             StoredFile(
                 id="uf1",
@@ -175,18 +224,29 @@ class TestUpdateFile:
         )
         await db_session.commit()
 
-        result = await update_file("uf1", "new title")
+        result = await svc.update_file("uf1", "new title")
         assert result.title == "new title"
 
-    async def test_not_found(self):
+    async def test_not_found(self, db_session):
+        svc = FileService(
+            file_repo=SQLFileRepository(db_session),
+            file_storage=MagicMock(),
+        )
         with pytest.raises(HTTPException) as exc:
-            await update_file("nonexistent", "x")
+            await svc.update_file("nonexistent", "x")
         assert exc.value.status_code == 404
 
 
 class TestDeleteFile:
     async def test_delete_existing(self, db_session):
-        (svc.STORAGE_DIR / "df1.txt").write_text("data")
+        from tests.conftest import TEST_STORAGE_DIR
+
+        storage = LocalFileStorage(TEST_STORAGE_DIR)
+        svc = FileService(
+            file_repo=SQLFileRepository(db_session),
+            file_storage=storage,
+        )
+        storage.save("df1.txt", b"data")
         db_session.add(
             StoredFile(
                 id="df1",
@@ -199,23 +259,34 @@ class TestDeleteFile:
         )
         await db_session.commit()
 
-        await delete_file("df1")
+        await svc.delete_file("df1")
 
         result = await db_session.execute(
             select(StoredFile).where(StoredFile.id == "df1")
         )
         assert result.scalar() is None
-        assert not (svc.STORAGE_DIR / "df1.txt").exists()
+        assert not storage.exists("df1.txt")
 
-    async def test_not_found(self):
+    async def test_not_found(self, db_session):
+        svc = FileService(
+            file_repo=SQLFileRepository(db_session),
+            file_storage=MagicMock(),
+        )
         with pytest.raises(HTTPException) as exc:
-            await delete_file("nonexistent")
+            await svc.delete_file("nonexistent")
         assert exc.value.status_code == 404
 
 
-class TestGetFilePath:
+class TestGetStoragePath:
     async def test_existing(self, db_session):
-        (svc.STORAGE_DIR / "gfp1.txt").write_text("data")
+        from tests.conftest import TEST_STORAGE_DIR
+
+        storage = LocalFileStorage(TEST_STORAGE_DIR)
+        svc = FileService(
+            file_repo=SQLFileRepository(db_session),
+            file_storage=storage,
+        )
+        storage.save("gfp1.txt", b"data")
         db_session.add(
             StoredFile(
                 id="gfp1",
@@ -228,11 +299,17 @@ class TestGetFilePath:
         )
         await db_session.commit()
 
-        item, path = await get_file_path("gfp1")
-        assert item.id == "gfp1"
+        file_item = await svc.get_file("gfp1")
+        path = svc.get_storage_path(file_item)
         assert path.exists()
 
     async def test_stored_file_missing(self, db_session):
+        from tests.conftest import TEST_STORAGE_DIR
+
+        svc = FileService(
+            file_repo=SQLFileRepository(db_session),
+            file_storage=LocalFileStorage(TEST_STORAGE_DIR),
+        )
         db_session.add(
             StoredFile(
                 id="gfp2",
@@ -245,8 +322,9 @@ class TestGetFilePath:
         )
         await db_session.commit()
 
+        file_item = await svc.get_file("gfp2")
         with pytest.raises(HTTPException) as exc:
-            await get_file_path("gfp2")
+            svc.get_storage_path(file_item)
         assert exc.value.status_code == 404
 
 
@@ -264,7 +342,8 @@ class TestCreateAlert:
         )
         await db_session.commit()
 
-        alert = await create_alert("ca1", "warning", "something")
+        svc = AlertService(alert_repo=SQLAlertRepository(db_session))
+        alert = await svc.create_alert("ca1", "warning", "something")
         assert alert.file_id == "ca1"
         assert alert.level == "warning"
         assert alert.message == "something"
@@ -272,11 +351,6 @@ class TestCreateAlert:
 
 
 class TestListScanResults:
-    async def test_not_found(self):
-        with pytest.raises(HTTPException) as exc:
-            await list_scan_results("nonexistent")
-        assert exc.value.status_code == 404
-
     async def test_empty(self, db_session):
         db_session.add(
             StoredFile(
@@ -290,7 +364,8 @@ class TestListScanResults:
         )
         await db_session.commit()
 
-        result = await list_scan_results("sr_empty")
+        repo = SQLScanResultRepository(db_session)
+        result = await repo.list_for_file("sr_empty")
         assert result == []
 
     async def test_with_results(self, db_session):
@@ -311,7 +386,43 @@ class TestListScanResults:
         )
         await db_session.commit()
 
-        result = await list_scan_results("sr1")
+        repo = SQLScanResultRepository(db_session)
+        result = await repo.list_for_file("sr1")
         assert len(result) == 1
         assert result[0].check_name == "basic_scan"
         assert result[0].status == "clean"
+
+
+class TestCreateAlertForFile:
+    async def test_info_alert(self, db_session):
+        svc = AlertService(alert_repo=SQLAlertRepository(db_session))
+        alert = await svc.create_alert_for_file(
+            processing_status="processed",
+            requires_attention=False,
+            scan_status="clean",
+            file_id="f1",
+        )
+        assert alert.level == "info"
+        assert alert.message == "File processed successfully"
+
+    async def test_warning_alert(self, db_session):
+        svc = AlertService(alert_repo=SQLAlertRepository(db_session))
+        alert = await svc.create_alert_for_file(
+            processing_status="processed",
+            requires_attention=True,
+            scan_status="suspicious",
+            file_id="f1",
+        )
+        assert alert.level == "warning"
+        assert "requires attention" in alert.message
+
+    async def test_critical_alert(self, db_session):
+        svc = AlertService(alert_repo=SQLAlertRepository(db_session))
+        alert = await svc.create_alert_for_file(
+            processing_status="failed",
+            requires_attention=False,
+            scan_status=None,
+            file_id="f1",
+        )
+        assert alert.level == "critical"
+        assert alert.message == "File processing failed"
