@@ -125,6 +125,18 @@ class TestDeleteFile:
         assert response.status_code == 404
 
 
+class TestListScanResults:
+    async def test_empty(self, client: AsyncClient, upload_file: dict):
+        file_id = upload_file["id"]
+        response = await client.get(f"/files/{file_id}/scan-results")
+        assert response.status_code == 200
+        assert response.json() == []
+
+    async def test_not_found_file(self, client: AsyncClient):
+        response = await client.get("/files/nonexistent/scan-results")
+        assert response.status_code == 404
+
+
 class TestCORS:
     async def test_cors_allowed_origin(self, client: AsyncClient):
         response = await client.options(

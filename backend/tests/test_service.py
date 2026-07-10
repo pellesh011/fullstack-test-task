@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 import src.service as svc
 
-from src.models import StoredFile
+from src.models import ScanResult, StoredFile
 from src.service import (
     create_alert,
     create_file,
@@ -13,6 +13,7 @@ from src.service import (
     get_file_path,
     list_alerts,
     list_files,
+    list_scan_results,
     update_file,
 )
 
@@ -268,3 +269,49 @@ class TestCreateAlert:
         assert alert.level == "warning"
         assert alert.message == "something"
         assert alert.id is not None
+
+
+class TestListScanResults:
+    async def test_not_found(self):
+        with pytest.raises(HTTPException) as exc:
+            await list_scan_results("nonexistent")
+        assert exc.value.status_code == 404
+
+    async def test_empty(self, db_session):
+        db_session.add(
+            StoredFile(
+                id="sr_empty",
+                title="t",
+                original_name="t.txt",
+                stored_name="sr_empty.txt",
+                mime_type="text/plain",
+                size=1,
+            )
+        )
+        await db_session.commit()
+
+        result = await list_scan_results("sr_empty")
+        assert result == []
+
+    async def test_with_results(self, db_session):
+        db_session.add(
+            StoredFile(
+                id="sr1",
+                title="t",
+                original_name="t.txt",
+                stored_name="sr1.txt",
+                mime_type="text/plain",
+                size=1,
+            )
+        )
+        await db_session.commit()
+
+        db_session.add(
+            ScanResult(file_id="sr1", check_name="basic_scan", status="clean")
+        )
+        await db_session.commit()
+
+        result = await list_scan_results("sr1")
+        assert len(result) == 1
+        assert result[0].check_name == "basic_scan"
+        assert result[0].status == "clean"

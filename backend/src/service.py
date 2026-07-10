@@ -7,7 +7,7 @@ from fastapi import HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 
-from src.models import Alert, StoredFile
+from src.models import Alert, ScanResult, StoredFile
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -142,3 +142,18 @@ async def create_alert(file_id: str, level: str, message: str) -> Alert:
         await session.commit()
         await session.refresh(alert)
         return alert
+
+
+async def list_scan_results(file_id: str) -> list[ScanResult]:
+    async with get_session_maker()() as session:
+        file_item = await session.get(StoredFile, file_id)
+        if not file_item:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="File not found"
+            )
+        result = await session.execute(
+            select(ScanResult)
+            .where(ScanResult.file_id == file_id)
+            .order_by(ScanResult.created_at.desc())
+        )
+        return list(result.scalars().all())
