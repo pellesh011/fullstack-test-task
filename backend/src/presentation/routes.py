@@ -4,11 +4,9 @@ from fastapi.responses import FileResponse
 from src.application.services.alert_service import AlertService
 from src.application.services.file_service import FileService
 from src.schemas import AlertItem, FileItem, FileUpdate, ScanResultItem
-from src.application.scanner.threat_scanner import ThreatScanner
 from src.presentation.dependencies import (
     get_alert_service,
     get_file_service,
-    get_threat_scanner,
 )
 from src.infrastructure.repositories.scan_result_repository import (
     SQLScanResultRepository,
@@ -37,12 +35,8 @@ async def create_file_view(
     title: str = Form(...),
     file: UploadFile = File(...),
     file_service: FileService = Depends(get_file_service),
-    threat_scanner: ThreatScanner = Depends(get_threat_scanner),
 ):
-    from src.tasks import scan_file_for_threats
-
     file_item = await file_service.create_file(title=title, upload_file=file)
-    scan_file_for_threats.delay(file_item.id)
     return file_item
 
 

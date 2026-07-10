@@ -4,15 +4,23 @@ from pathlib import Path
 from fastapi import HTTPException, UploadFile, status
 import mimetypes
 
+from src.domain.events import FileCreated
+from src.domain.interfaces.event_bus import EventBus
 from src.domain.interfaces.file_storage import FileStorage
 from src.domain.interfaces.repositories import FileRepository
 from src.models import StoredFile
 
 
 class FileService:
-    def __init__(self, file_repo: FileRepository, file_storage: FileStorage):
+    def __init__(
+        self,
+        file_repo: FileRepository,
+        file_storage: FileStorage,
+        event_bus: EventBus,
+    ):
         self._file_repo = file_repo
         self._file_storage = file_storage
+        self._event_bus = event_bus
 
     async def list_files(self) -> list[StoredFile]:
         return list(await self._file_repo.list_all())
@@ -49,7 +57,9 @@ class FileService:
             size=len(content),
             processing_status="uploaded",
         )
-        return await self._file_repo.save(file_item)
+        saved = await self._file_repo.save(file_item)
+        await self._event_bus.publish(FileCreated(file_id=saved.id))
+        return saved
 
     async def update_file(self, file_id: str, title: str) -> StoredFile:
         file_item = await self._file_repo.get_by_id(file_id)
