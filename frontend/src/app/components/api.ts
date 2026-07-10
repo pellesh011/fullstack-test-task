@@ -1,6 +1,6 @@
 import type { AlertItem, FileItem } from "./types";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 export async function fetchFiles(): Promise<FileItem[]> {
   const response = await fetch(`${API_BASE}/files`, { cache: "no-store" });
