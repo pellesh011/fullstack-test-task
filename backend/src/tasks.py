@@ -2,9 +2,8 @@ import asyncio
 import os
 from pathlib import Path
 from celery import Celery
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from src.models import Alert, StoredFile
-from src.service import STORAGE_DIR, DB_URL
+from src.service import STORAGE_DIR, get_session_maker
 
 REDIS_URL = os.environ.get("REDIS_URL", "redis://backend-redis:6379/0")
 _worker_loop: asyncio.AbstractEventLoop | None = None
@@ -19,12 +18,10 @@ def run_in_worker_loop(coroutine):
 
 
 celery_app = Celery("file_tasks", broker=REDIS_URL, backend=REDIS_URL)
-engine = create_async_engine(DB_URL)
-async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
 
 
 async def _scan_file_for_threats(file_id: str) -> None:
-    async with async_session_maker() as session:
+    async with get_session_maker()() as session:
         file_item = await session.get(StoredFile, file_id)
         if not file_item:
             return
@@ -54,7 +51,7 @@ async def _scan_file_for_threats(file_id: str) -> None:
 
 
 async def _extract_file_metadata(file_id: str) -> None:
-    async with async_session_maker() as session:
+    async with get_session_maker()() as session:
         file_item = await session.get(StoredFile, file_id)
         if not file_item:
             return
@@ -90,7 +87,7 @@ async def _extract_file_metadata(file_id: str) -> None:
 
 
 async def _send_file_alert(file_id: str) -> None:
-    async with async_session_maker() as session:
+    async with get_session_maker()() as session:
         file_item = await session.get(StoredFile, file_id)
         if not file_item:
             return
