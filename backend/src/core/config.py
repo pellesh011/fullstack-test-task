@@ -28,7 +28,9 @@ class Settings(BaseSettings):
 
     @property
     def resolved_redis_url(self) -> str:
-        return os.environ.get("CELERY_BROKER_URL", self.celery_broker_url or self.redis_url)
+        return os.environ.get(
+            "CELERY_BROKER_URL", self.celery_broker_url or self.redis_url
+        )
 
     @property
     def database_url(self) -> str:
