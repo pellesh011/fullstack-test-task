@@ -5,6 +5,10 @@ from src.models import StoredFile
 
 
 class TextMetadataExtractor(MetadataExtractor):
+    @staticmethod
+    def can_handle(mime_type: str) -> bool:
+        return mime_type.startswith("text/")
+
     def extract(self, file: StoredFile, stored_path: Path) -> dict:
         content = stored_path.read_text(encoding="utf-8", errors="ignore")
         return {

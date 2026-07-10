@@ -10,6 +10,7 @@ class FileItem(BaseModel):
     title: str
     original_name: str
     mime_type: str
+    original_mime_type: str | None = None
     size: int
     processing_status: str
     scan_status: str | None

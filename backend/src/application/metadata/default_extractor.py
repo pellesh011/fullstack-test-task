@@ -5,6 +5,10 @@ from src.models import StoredFile
 
 
 class DefaultMetadataExtractor(MetadataExtractor):
+    @staticmethod
+    def can_handle(mime_type: str) -> bool:
+        return True
+
     def extract(self, file: StoredFile, stored_path: Path) -> dict:
         return {
             "extension": Path(file.original_name).suffix.lower(),

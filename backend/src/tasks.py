@@ -2,7 +2,7 @@ import asyncio
 
 from celery import Celery
 
-from src.application.metadata.extractor_registry import get_metadata_extractor
+from src.application.metadata.extractor_registry import extract_metadata
 from src.application.scanner.checks.file_size_check import FileSizeCheck
 from src.application.scanner.checks.mime_mismatch_check import MimeMismatchCheck
 from src.application.scanner.checks.suspicious_extension import (
@@ -93,8 +93,7 @@ async def _extract_file_metadata(file_id: str) -> None:
             send_file_alert.delay(file_id)
             return
 
-        extractor = get_metadata_extractor(file_item.mime_type)
-        metadata = extractor.extract(file_item, stored_path)
+        metadata = extract_metadata(file_item, stored_path)
 
         file_item.metadata_json = metadata
         file_item.processing_status = "processed"

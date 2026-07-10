@@ -3,7 +3,7 @@ from collections.abc import AsyncGenerator
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.application.metadata.extractor_registry import get_metadata_extractor
+from src.application.metadata.extractor_registry import extract_metadata
 from src.application.scanner.checks.file_size_check import FileSizeCheck
 from src.application.scanner.checks.mime_mismatch_check import MimeMismatchCheck
 from src.application.scanner.checks.suspicious_extension import (
@@ -96,4 +96,4 @@ async def get_metadata_extractor_for_file(
     file_service: FileService = Depends(get_file_service),
     file_id: str | None = None,
 ):
-    return get_metadata_extractor
+    return extract_metadata

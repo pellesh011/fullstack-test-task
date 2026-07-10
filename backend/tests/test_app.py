@@ -45,6 +45,29 @@ class TestCreateFile:
         assert "created_at" in data
         assert "updated_at" in data
 
+    async def test_mime_type_from_content_not_header(self, client: AsyncClient):
+        png_header = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"
+        response = await client.post(
+            "/files",
+            data={"title": "mime test"},
+            files={"file": ("fake.txt", png_header, "text/plain")},
+        )
+        assert response.status_code == 201
+        data = response.json()
+        assert data["mime_type"] == "image/png"
+        assert data["original_mime_type"] == "text/plain"
+
+    async def test_pdf_detected_from_magic_bytes(self, client: AsyncClient):
+        pdf_content = b"%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\n%%EOF"
+        response = await client.post(
+            "/files",
+            data={"title": "pdf test"},
+            files={"file": ("doc.bin", pdf_content, "application/octet-stream")},
+        )
+        assert response.status_code == 201
+        data = response.json()
+        assert data["mime_type"] == "application/pdf"
+
     async def test_empty_file(self, client: AsyncClient):
         response = await client.post(
             "/files",
