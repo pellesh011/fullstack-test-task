@@ -1,12 +1,11 @@
 import tempfile
 from pathlib import Path
-from typing import AsyncGenerator
 
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from src.app import app
 from src.models import Base
@@ -36,23 +35,22 @@ async def test_engine():
 
 
 @pytest_asyncio.fixture(autouse=True)
-async def _patch_service(test_engine, monkeypatch):
-    import src.service as svc
-    import src.tasks as tasks_mod
+async def _patch_dependencies(test_engine, monkeypatch):
+    from src.presentation import dependencies as deps
+    from src.infrastructure.database import DatabaseSessionManager
 
-    svc._engine = test_engine
-    svc._session_maker = None
-    tasks_mod._engine = test_engine
-    tasks_mod._session_maker = None
-    monkeypatch.setattr(svc, "STORAGE_DIR", TEST_STORAGE_DIR)
-    monkeypatch.setattr(tasks_mod, "STORAGE_DIR", TEST_STORAGE_DIR)
-    monkeypatch.setattr("src.app.STORAGE_DIR", TEST_STORAGE_DIR)
-    monkeypatch.setattr("src.tasks.STORAGE_DIR", TEST_STORAGE_DIR)
-    TEST_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+    manager = DatabaseSessionManager("sqlite+aiosqlite://")
+    manager._engine = test_engine
+    manager._session_maker = async_sessionmaker(test_engine, expire_on_commit=False)
+    deps._manager = manager
+
+    from src.infrastructure.storage.local_file_storage import LocalFileStorage
+
+    deps._storage = LocalFileStorage(TEST_STORAGE_DIR)
 
 
 @pytest_asyncio.fixture
-async def db_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
+async def db_session(test_engine):
     async with test_engine.begin() as conn:
         for table in reversed(Base.metadata.sorted_tables):
             await conn.execute(text(f"DELETE FROM {table.name}"))
@@ -63,7 +61,7 @@ async def db_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
 
 
 @pytest_asyncio.fixture
-async def client(test_engine) -> AsyncGenerator[AsyncClient, None]:
+async def client(test_engine):
     async with test_engine.begin() as conn:
         for table in reversed(Base.metadata.sorted_tables):
             await conn.execute(text(f"DELETE FROM {table.name}"))
