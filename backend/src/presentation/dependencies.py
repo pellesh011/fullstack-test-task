@@ -12,6 +12,7 @@ from src.application.scanner.checks.suspicious_extension import (
 from src.application.scanner.threat_scanner import ThreatScanner
 from src.application.services.alert_service import AlertService
 from src.application.services.file_service import FileService
+from src.domain.interfaces.event_bus import EventBus
 from src.domain.interfaces.file_storage import FileStorage
 from src.domain.interfaces.repositories import (
     AlertRepository,
@@ -19,6 +20,7 @@ from src.domain.interfaces.repositories import (
     ScanResultRepository,
 )
 from src.infrastructure.database import DatabaseSessionManager
+from src.infrastructure.event_bus.redis_event_bus import RedisEventBus
 from src.infrastructure.repositories.alert_repository import SQLAlertRepository
 from src.infrastructure.repositories.file_repository import SQLFileRepository
 from src.infrastructure.repositories.scan_result_repository import (
@@ -29,6 +31,7 @@ from src.core.config import settings
 
 _manager = DatabaseSessionManager()
 _storage: FileStorage = LocalFileStorage(settings.resolved_storage_dir)
+_event_bus: EventBus = RedisEventBus(settings.resolved_redis_url)
 
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
@@ -54,11 +57,20 @@ def get_file_storage() -> FileStorage:
     return _storage
 
 
+def get_event_bus() -> EventBus:
+    return _event_bus
+
+
 def get_file_service(
     file_repo: FileRepository = Depends(get_file_repo),
     file_storage: FileStorage = Depends(get_file_storage),
+    event_bus: EventBus = Depends(get_event_bus),
 ) -> FileService:
-    return FileService(file_repo=file_repo, file_storage=file_storage)
+    return FileService(
+        file_repo=file_repo,
+        file_storage=file_storage,
+        event_bus=event_bus,
+    )
 
 
 def get_alert_service(

@@ -1,5 +1,6 @@
 import tempfile
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 import pytest
 import pytest_asyncio
@@ -47,6 +48,7 @@ async def _patch_dependencies(test_engine, monkeypatch):
     from src.infrastructure.storage.local_file_storage import LocalFileStorage
 
     deps._storage = LocalFileStorage(TEST_STORAGE_DIR)
+    deps._event_bus = AsyncMock()
 
 
 @pytest_asyncio.fixture

@@ -21,8 +21,9 @@ class TestListFiles:
     async def test_empty(self, db_session):
         svc = FileService(
             file_repo=SQLFileRepository(db_session),
-            file_storage=MagicMock(),
-        )
+        file_storage=MagicMock(),
+        event_bus=AsyncMock(),
+    )
         result = await svc.list_files()
         assert result == []
 
@@ -41,8 +42,9 @@ class TestListFiles:
 
         svc = FileService(
             file_repo=SQLFileRepository(db_session),
-            file_storage=MagicMock(),
-        )
+        file_storage=MagicMock(),
+        event_bus=AsyncMock(),
+    )
         result = await svc.list_files()
         assert len(result) == 1
         assert result[0].title == "test"
@@ -50,8 +52,9 @@ class TestListFiles:
     async def test_ordered_by_created_at_desc(self, db_session):
         svc = FileService(
             file_repo=SQLFileRepository(db_session),
-            file_storage=MagicMock(),
-        )
+        file_storage=MagicMock(),
+        event_bus=AsyncMock(),
+    )
         db_session.add_all(
             [
                 StoredFile(
@@ -111,8 +114,9 @@ class TestGetFile:
     async def test_existing(self, db_session):
         svc = FileService(
             file_repo=SQLFileRepository(db_session),
-            file_storage=MagicMock(),
-        )
+        file_storage=MagicMock(),
+        event_bus=AsyncMock(),
+    )
         db_session.add(
             StoredFile(
                 id="gf1",
@@ -132,8 +136,9 @@ class TestGetFile:
     async def test_not_found(self, db_session):
         svc = FileService(
             file_repo=SQLFileRepository(db_session),
-            file_storage=MagicMock(),
-        )
+        file_storage=MagicMock(),
+        event_bus=AsyncMock(),
+    )
         with pytest.raises(HTTPException) as exc:
             await svc.get_file("nonexistent")
         assert exc.value.status_code == 404
@@ -145,8 +150,9 @@ class TestCreateFile:
 
         svc = FileService(
             file_repo=SQLFileRepository(db_session),
-            file_storage=LocalFileStorage(TEST_STORAGE_DIR),
-        )
+        file_storage=LocalFileStorage(TEST_STORAGE_DIR),
+        event_bus=AsyncMock(),
+    )
         mock = MagicMock()
         mock.filename = "hello.txt"
         mock.content_type = "text/plain"
@@ -164,8 +170,9 @@ class TestCreateFile:
     async def test_empty_file_raises(self, db_session):
         svc = FileService(
             file_repo=SQLFileRepository(db_session),
-            file_storage=MagicMock(),
-        )
+        file_storage=MagicMock(),
+        event_bus=AsyncMock(),
+    )
         mock = MagicMock()
         mock.filename = "empty.txt"
         mock.content_type = "text/plain"
@@ -180,8 +187,9 @@ class TestCreateFile:
 
         svc = FileService(
             file_repo=SQLFileRepository(db_session),
-            file_storage=LocalFileStorage(TEST_STORAGE_DIR),
-        )
+        file_storage=LocalFileStorage(TEST_STORAGE_DIR),
+        event_bus=AsyncMock(),
+    )
         mock = MagicMock()
         mock.filename = None
         mock.content_type = "text/plain"
@@ -195,8 +203,9 @@ class TestCreateFile:
 
         svc = FileService(
             file_repo=SQLFileRepository(db_session),
-            file_storage=LocalFileStorage(TEST_STORAGE_DIR),
-        )
+        file_storage=LocalFileStorage(TEST_STORAGE_DIR),
+        event_bus=AsyncMock(),
+    )
         mock = MagicMock()
         mock.filename = "file.txt"
         mock.content_type = None
@@ -210,8 +219,9 @@ class TestUpdateFile:
     async def test_update_title(self, db_session):
         svc = FileService(
             file_repo=SQLFileRepository(db_session),
-            file_storage=MagicMock(),
-        )
+        file_storage=MagicMock(),
+        event_bus=AsyncMock(),
+    )
         db_session.add(
             StoredFile(
                 id="uf1",
@@ -230,8 +240,9 @@ class TestUpdateFile:
     async def test_not_found(self, db_session):
         svc = FileService(
             file_repo=SQLFileRepository(db_session),
-            file_storage=MagicMock(),
-        )
+        file_storage=MagicMock(),
+        event_bus=AsyncMock(),
+    )
         with pytest.raises(HTTPException) as exc:
             await svc.update_file("nonexistent", "x")
         assert exc.value.status_code == 404
@@ -244,8 +255,9 @@ class TestDeleteFile:
         storage = LocalFileStorage(TEST_STORAGE_DIR)
         svc = FileService(
             file_repo=SQLFileRepository(db_session),
-            file_storage=storage,
-        )
+        file_storage=storage,
+        event_bus=AsyncMock(),
+    )
         storage.save("df1.txt", b"data")
         db_session.add(
             StoredFile(
@@ -270,8 +282,9 @@ class TestDeleteFile:
     async def test_not_found(self, db_session):
         svc = FileService(
             file_repo=SQLFileRepository(db_session),
-            file_storage=MagicMock(),
-        )
+        file_storage=MagicMock(),
+        event_bus=AsyncMock(),
+    )
         with pytest.raises(HTTPException) as exc:
             await svc.delete_file("nonexistent")
         assert exc.value.status_code == 404
@@ -284,8 +297,9 @@ class TestGetStoragePath:
         storage = LocalFileStorage(TEST_STORAGE_DIR)
         svc = FileService(
             file_repo=SQLFileRepository(db_session),
-            file_storage=storage,
-        )
+        file_storage=storage,
+        event_bus=AsyncMock(),
+    )
         storage.save("gfp1.txt", b"data")
         db_session.add(
             StoredFile(
@@ -308,8 +322,9 @@ class TestGetStoragePath:
 
         svc = FileService(
             file_repo=SQLFileRepository(db_session),
-            file_storage=LocalFileStorage(TEST_STORAGE_DIR),
-        )
+        file_storage=LocalFileStorage(TEST_STORAGE_DIR),
+        event_bus=AsyncMock(),
+    )
         db_session.add(
             StoredFile(
                 id="gfp2",
