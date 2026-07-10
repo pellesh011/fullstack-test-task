@@ -42,9 +42,12 @@ async def _patch_service(test_engine, monkeypatch):
 
     svc._engine = test_engine
     svc._session_maker = None
+    tasks_mod._engine = test_engine
+    tasks_mod._session_maker = None
     monkeypatch.setattr(svc, "STORAGE_DIR", TEST_STORAGE_DIR)
     monkeypatch.setattr(tasks_mod, "STORAGE_DIR", TEST_STORAGE_DIR)
     monkeypatch.setattr("src.app.STORAGE_DIR", TEST_STORAGE_DIR)
+    monkeypatch.setattr("src.tasks.STORAGE_DIR", TEST_STORAGE_DIR)
     TEST_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 

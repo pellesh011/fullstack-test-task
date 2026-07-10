@@ -4,7 +4,7 @@ import pytest
 import src.service as svc
 from sqlalchemy import select
 
-from src.models import Alert, StoredFile
+from src.models import Alert, ScanResult, StoredFile
 from src.tasks import (
     _extract_file_metadata,
     _scan_file_for_threats,
@@ -40,8 +40,20 @@ class TestScanFileForThreats:
         file_item = await db_session.get(StoredFile, "clean1")
         assert file_item.processing_status == "processing"
         assert file_item.scan_status == "clean"
-        assert file_item.scan_details == "no threats found"
         assert file_item.requires_attention is False
+
+        results = (
+            (
+                await db_session.execute(
+                    select(ScanResult).where(ScanResult.file_id == "clean1")
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert len(results) == 1
+        assert results[0].check_name == "basic_scan"
+        assert results[0].status == "clean"
 
     async def test_suspicious_extension(self, db_session, no_delay):
         f = StoredFile(
@@ -59,8 +71,20 @@ class TestScanFileForThreats:
 
         file_item = await db_session.get(StoredFile, "exe1")
         assert file_item.scan_status == "suspicious"
-        assert "suspicious extension" in file_item.scan_details
         assert file_item.requires_attention is True
+
+        results = (
+            (
+                await db_session.execute(
+                    select(ScanResult).where(ScanResult.file_id == "exe1")
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert any(r.check_name == "suspicious_extension" for r in results)
+        suspicious = next(r for r in results if r.check_name == "suspicious_extension")
+        assert "suspicious extension" in suspicious.message
 
     async def test_large_file(self, db_session, no_delay):
         f = StoredFile(
@@ -78,7 +102,19 @@ class TestScanFileForThreats:
 
         file_item = await db_session.get(StoredFile, "big1")
         assert file_item.scan_status == "suspicious"
-        assert "larger than 10 MB" in file_item.scan_details
+
+        results = (
+            (
+                await db_session.execute(
+                    select(ScanResult).where(ScanResult.file_id == "big1")
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert any(r.check_name == "file_size" for r in results)
+        size_check = next(r for r in results if r.check_name == "file_size")
+        assert "larger than 10 MB" in size_check.message
 
     async def test_pdf_mime_mismatch(self, db_session, no_delay):
         f = StoredFile(
@@ -96,7 +132,17 @@ class TestScanFileForThreats:
 
         file_item = await db_session.get(StoredFile, "pdf1")
         assert file_item.scan_status == "suspicious"
-        assert "pdf extension does not match mime type" in file_item.scan_details
+
+        results = (
+            (
+                await db_session.execute(
+                    select(ScanResult).where(ScanResult.file_id == "pdf1")
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert any(r.check_name == "mime_mismatch" for r in results)
 
     async def test_pdf_mime_allows_octet_stream(self, db_session, no_delay):
         f = StoredFile(
@@ -208,9 +254,21 @@ class TestExtractFileMetadata:
 
         file_item = await db_session.get(StoredFile, "missing1")
         assert file_item.processing_status == "failed"
-        assert (
-            file_item.scan_details == "stored file not found during metadata extraction"
+
+        results = (
+            (
+                await db_session.execute(
+                    select(ScanResult).where(ScanResult.file_id == "missing1")
+                )
+            )
+            .scalars()
+            .all()
         )
+        assert len(results) == 1
+        assert results[0].check_name == "metadata_extraction"
+        assert results[0].status == "error"
+        assert "stored file not found" in results[0].message
+
         alert_delay.assert_called_once_with("missing1")
 
     async def test_non_text_non_pdf(self, db_session, no_delay):
@@ -270,7 +328,7 @@ class TestSendFileAlert:
             size=1,
             processing_status="processed",
             requires_attention=True,
-            scan_details="suspicious extension .exe",
+            scan_status="suspicious",
         )
         db_session.add(f)
         await db_session.commit()

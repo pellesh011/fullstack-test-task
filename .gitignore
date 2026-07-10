@@ -11,4 +11,4 @@ wheels/
 .venv
 .idea
 **/.DS_Store
-backend/storage/*
+backend/storage/*.cursor/

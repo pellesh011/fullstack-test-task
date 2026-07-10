@@ -3,13 +3,14 @@ from fastapi import File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from starlette import status
-from src.schemas import AlertItem, FileItem, FileUpdate
+from src.schemas import AlertItem, FileItem, FileUpdate, ScanResultItem
 from src.service import (
     create_file,
     delete_file,
     get_file,
     list_alerts,
     list_files,
+    list_scan_results,
     update_file,
     STORAGE_DIR,
 )
@@ -74,6 +75,11 @@ async def download_file(file_id: str):
         media_type=file_item.mime_type,
         filename=file_item.original_name,
     )
+
+
+@app.get("/files/{file_id}/scan-results", response_model=list[ScanResultItem])
+async def list_scan_results_view(file_id: str):
+    return await list_scan_results(file_id)
 
 
 @app.delete("/files/{file_id}", status_code=204)

@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 import pytest
 from pydantic import ValidationError
 
-from src.schemas import AlertItem, FileItem, FileUpdate
+from src.schemas import AlertItem, FileItem, FileUpdate, ScanResultItem
 
 
 class TestFileItem:
@@ -17,7 +17,6 @@ class TestFileItem:
             size=100,
             processing_status="uploaded",
             scan_status=None,
-            scan_details=None,
             metadata_json=None,
             requires_attention=False,
             created_at=now,
@@ -74,3 +73,34 @@ class TestAlertItem:
                 message="test",
                 created_at=now,
             )
+
+
+class TestScanResultItem:
+    def test_valid(self):
+        now = datetime.now(timezone.utc)
+        item = ScanResultItem(
+            id=1,
+            file_id="file-id",
+            check_name="basic_scan",
+            status="clean",
+            message="no threats found",
+            created_at=now,
+        )
+        assert item.id == 1
+        assert item.check_name == "basic_scan"
+        assert item.status == "clean"
+
+    def test_nullable_message(self):
+        now = datetime.now(timezone.utc)
+        item = ScanResultItem(
+            id=2,
+            file_id="file-id",
+            check_name="suspicious_extension",
+            status="suspicious",
+            message=None,
+            created_at=now,
+        )
+        assert item.message is None
+
+    def test_from_attributes_config(self):
+        assert ScanResultItem.model_config.get("from_attributes") is True
