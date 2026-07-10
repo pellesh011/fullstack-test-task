@@ -103,6 +103,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "python-multipart" },
+    { name = "redis" },
     { name = "sqlalchemy" },
     { name = "uvicorn" },
 ]
@@ -133,6 +134,7 @@ requires-dist = [
     { name = "pytest-asyncio", marker = "extra == 'test'", specifier = ">=0.25" },
     { name = "pytest-cov", marker = "extra == 'test'", specifier = ">=6.0" },
     { name = "python-multipart", specifier = ">=0.0.20" },
+    { name = "redis", specifier = ">=5.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.11.0" },
     { name = "sqlalchemy", specifier = ">=2.0.48" },
     { name = "uvicorn", specifier = ">=0.42.0" },

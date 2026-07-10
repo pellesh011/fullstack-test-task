@@ -18,6 +18,7 @@ from src.infrastructure.repositories.file_repository import SQLFileRepository
 from src.infrastructure.repositories.scan_result_repository import (
     SQLScanResultRepository,
 )
+from src.infrastructure.event_bus.subscriber import start_event_subscriber
 from src.infrastructure.storage.local_file_storage import LocalFileStorage
 from src.models import ScanResult
 
@@ -133,3 +134,6 @@ def extract_file_metadata(file_id: str) -> None:
 @celery_app.task
 def send_file_alert(file_id: str) -> None:
     run_async(_send_file_alert(file_id))
+
+
+start_event_subscriber()
