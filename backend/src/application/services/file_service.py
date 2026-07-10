@@ -2,7 +2,7 @@ from uuid import uuid4
 from pathlib import Path
 
 from fastapi import HTTPException, UploadFile, status
-import mimetypes
+import magic
 
 from src.domain.events import FileCreated
 from src.domain.interfaces.event_bus import EventBus
@@ -51,9 +51,8 @@ class FileService:
             title=title,
             original_name=upload_file.filename or stored_name,
             stored_name=stored_name,
-            mime_type=upload_file.content_type
-            or mimetypes.guess_type(stored_name)[0]
-            or "application/octet-stream",
+            mime_type=magic.from_buffer(content, mime=True),
+            original_mime_type=upload_file.content_type,
             size=len(content),
             processing_status="uploaded",
         )
