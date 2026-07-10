@@ -150,6 +150,87 @@ class TestScanFileForThreats:
         )
         assert any(r.check_name == "mime_mismatch" for r in results)
 
+    async def test_mime_mismatch_exe_as_png(self, db_session, no_delay):
+        f = StoredFile(
+            id="exe2",
+            title="fake exe",
+            original_name="hack.exe",
+            stored_name="exe2.exe",
+            mime_type="image/png",
+            size=100,
+        )
+        db_session.add(f)
+        await db_session.commit()
+
+        await tasks_mod._scan_file_for_threats("exe2")
+
+        results = (
+            (
+                await db_session.execute(
+                    select(ScanResult).where(ScanResult.file_id == "exe2")
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert any(r.check_name == "mime_mismatch" for r in results)
+        mismatch = next(r for r in results if r.check_name == "mime_mismatch")
+        assert "exe" in mismatch.message
+        assert "image/png" in mismatch.message
+
+    async def test_mime_mismatch_zip_as_jpeg(self, db_session, no_delay):
+        f = StoredFile(
+            id="zip1",
+            title="fake zip",
+            original_name="archive.zip",
+            stored_name="zip1.zip",
+            mime_type="image/jpeg",
+            size=100,
+        )
+        db_session.add(f)
+        await db_session.commit()
+
+        await tasks_mod._scan_file_for_threats("zip1")
+        results = (
+            (
+                await db_session.execute(
+                    select(ScanResult).where(ScanResult.file_id == "zip1")
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert any(r.check_name == "mime_mismatch" for r in results)
+
+    async def test_mime_mismatch_client_declared_wrong(self, db_session, no_delay):
+        f = StoredFile(
+            id="client1",
+            title="client mime mismatch",
+            original_name="doc.pdf",
+            stored_name="client1.pdf",
+            mime_type="application/pdf",
+            original_mime_type="text/plain",
+            size=100,
+        )
+        db_session.add(f)
+        await db_session.commit()
+
+        await tasks_mod._scan_file_for_threats("client1")
+
+        results = (
+            (
+                await db_session.execute(
+                    select(ScanResult).where(ScanResult.file_id == "client1")
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert any(r.check_name == "mime_mismatch" for r in results)
+        mismatch = next(r for r in results if r.check_name == "mime_mismatch")
+        assert "client declared" in mismatch.message
+        assert "text/plain" in mismatch.message
+
     async def test_pdf_mime_allows_octet_stream(self, db_session, no_delay):
         f = StoredFile(
             id="pdf2",

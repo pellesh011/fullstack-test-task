@@ -5,6 +5,10 @@ from src.models import StoredFile
 
 
 class PdfMetadataExtractor(MetadataExtractor):
+    @staticmethod
+    def can_handle(mime_type: str) -> bool:
+        return mime_type == "application/pdf"
+
     def extract(self, file: StoredFile, stored_path: Path) -> dict:
         content = stored_path.read_bytes()
         return {

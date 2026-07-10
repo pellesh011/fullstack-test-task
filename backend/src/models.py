@@ -26,6 +26,7 @@ class StoredFile(Base):
     original_name: Mapped[str] = mapped_column(String(255), nullable=False)
     stored_name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     mime_type: Mapped[str] = mapped_column(String(255), nullable=False)
+    original_mime_type: Mapped[str | None] = mapped_column(String(255), nullable=True)
     size: Mapped[int] = mapped_column(BigInteger, nullable=False)
     processing_status: Mapped[str] = mapped_column(
         String(50), nullable=False, default="uploaded"
