@@ -28,4 +28,12 @@ class SQLFileRepository(FileRepository):
 
     async def delete(self, file: StoredFile) -> None:
         await self._session.delete(file)
+
+    async def flush(self) -> None:
+        await self._session.flush()
+
+    async def rollback(self) -> None:
+        await self._session.rollback()
+
+    async def commit(self) -> None:
         await self._session.commit()

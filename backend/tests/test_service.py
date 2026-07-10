@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
@@ -288,6 +288,41 @@ class TestDeleteFile:
         with pytest.raises(HTTPException) as exc:
             await svc.delete_file("nonexistent")
         assert exc.value.status_code == 404
+
+    async def test_rollback_on_storage_failure(self, db_session):
+        from tests.conftest import TEST_STORAGE_DIR
+
+        storage = LocalFileStorage(TEST_STORAGE_DIR)
+        svc = FileService(
+            file_repo=SQLFileRepository(db_session),
+        file_storage=storage,
+        event_bus=AsyncMock(),
+    )
+        storage.save("df2.txt", b"data")
+        db_session.add(
+            StoredFile(
+                id="df2",
+                title="x",
+                original_name="f.txt",
+                stored_name="df2.txt",
+                mime_type="text/plain",
+                size=4,
+            )
+        )
+        await db_session.commit()
+
+        with patch.object(storage, "delete", side_effect=OSError("Storage unavailable")):
+            with pytest.raises(HTTPException) as exc:
+                await svc.delete_file("df2")
+            assert exc.value.status_code == 500
+
+        result = await db_session.execute(
+            select(StoredFile).where(StoredFile.id == "df2")
+        )
+        assert result.scalar() is not None
+        assert storage.exists("df2.txt")
+
+        storage.delete("df2.txt")
 
 
 class TestGetStoragePath:

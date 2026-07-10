@@ -76,8 +76,20 @@ class FileService:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="File not found"
             )
-        self._file_storage.delete(file_item.stored_name)
+
         await self._file_repo.delete(file_item)
+        await self._file_repo.flush()
+
+        try:
+            self._file_storage.delete(file_item.stored_name)
+        except Exception:
+            await self._file_repo.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to delete file from storage",
+            )
+
+        await self._file_repo.commit()
 
     def get_storage_path(self, file_item: StoredFile) -> Path:
         path = self._file_storage.get_path(file_item.stored_name)
