@@ -14,7 +14,7 @@ class LocalFileStorage(FileStorage):
         safe_name = Path(stored_name).name
         full_path = (self._storage_dir / safe_name).resolve()
         if not full_path.is_relative_to(self._storage_dir):
-            raise ValueError(f"Invalid stored_name: path traversal attempt")
+            raise ValueError("Invalid stored_name: path traversal attempt")
         return full_path
 
     async def save(self, stored_name: str, content: bytes) -> Path:

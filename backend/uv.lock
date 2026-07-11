@@ -131,6 +131,11 @@ test = [
     { name = "pytest-cov" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "ruff" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "aiofiles", specifier = ">=24.0.0" },
@@ -153,6 +158,9 @@ requires-dist = [
     { name = "uvicorn", specifier = ">=0.42.0" },
 ]
 provides-extras = ["dev", "test"]
+
+[package.metadata.requires-dev]
+dev = [{ name = "ruff", specifier = ">=0.15.21" }]
 
 [[package]]
 name = "billiard"

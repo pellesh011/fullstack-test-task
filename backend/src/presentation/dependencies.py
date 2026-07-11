@@ -3,7 +3,6 @@ from collections.abc import AsyncGenerator
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.application.metadata.extractor_registry import extract_metadata
 from src.application.scanner.checks.file_size_check import FileSizeCheck
 from src.application.scanner.checks.mime_mismatch_check import MimeMismatchCheck
 from src.application.scanner.checks.suspicious_extension import (
