@@ -70,6 +70,7 @@ async def health_check() -> JSONResponse:
 
     try:
         import redis.asyncio as redis
+
         r = redis.from_url(settings.resolved_redis_url)
         await r.ping()
         await r.close()
