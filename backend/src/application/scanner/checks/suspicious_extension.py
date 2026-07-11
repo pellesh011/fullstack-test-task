@@ -8,7 +8,7 @@ from src.models import ScanResult, StoredFile
 class SuspiciousExtensionCheck(ScanCheck):
     def check(self, file: StoredFile) -> ScanResult | None:
         ext = Path(file.original_name).suffix.lower()
-        if ext in settings.suspicious_extensions:
+        if ext in settings.suspicious_extensions_parsed:
             return ScanResult(
                 file_id=file.id,
                 check_name="suspicious_extension",
