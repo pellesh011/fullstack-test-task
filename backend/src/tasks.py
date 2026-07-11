@@ -1,7 +1,7 @@
 import asyncio
 import logging
-
 from celery import Celery
+from celery.signals import worker_ready
 
 from src.application.metadata.extractor_registry import extract_metadata
 from src.application.scanner.checks.file_size_check import FileSizeCheck
@@ -19,7 +19,7 @@ from src.infrastructure.repositories.file_repository import SQLFileRepository
 from src.infrastructure.repositories.scan_result_repository import (
     SQLScanResultRepository,
 )
-from src.infrastructure.event_bus.subscriber import TaskRegistry
+from src.infrastructure.event_bus.subscriber import TaskRegistry, start_event_subscriber
 from src.infrastructure.storage.local_file_storage import LocalFileStorage
 from src.models import ScanResult
 
@@ -33,6 +33,12 @@ celery_app = Celery(
 
 _db = DatabaseSessionManager()
 _storage: FileStorage = LocalFileStorage(settings.resolved_storage_dir)
+
+
+@worker_ready.connect
+def _start_event_subscriber(**kwargs):
+    logger.info("Celery worker ready, starting event subscriber")
+    start_event_subscriber()
 
 
 async def _scan_file_for_threats(file_id: str) -> None:

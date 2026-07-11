@@ -1,7 +1,6 @@
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from contextlib import asynccontextmanager
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError, DBAPIError
 from redis.exceptions import ConnectionError as RedisConnectionError, RedisError
@@ -10,20 +9,11 @@ from src.core.config import settings
 from src.presentation.routes import router
 from src.infrastructure.database import DatabaseSessionManager
 from src.infrastructure.event_bus.redis_event_bus import RedisEventBus
-from src.infrastructure.event_bus.subscriber import start_event_subscriber
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    start_event_subscriber()
-    yield
-
 
 app = FastAPI(
     title="File Share API",
     version="1.0.0",
     description="MVP file sharing service with threat scanning and alerts",
-    lifespan=lifespan,
 )
 
 app.add_middleware(
