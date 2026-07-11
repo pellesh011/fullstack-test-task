@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import src.tasks as tasks_mod
@@ -9,8 +9,8 @@ from src.models import Alert, ScanResult, StoredFile
 @pytest.fixture(autouse=True)
 def no_delay():
     with (
-        patch("src.tasks.extract_file_metadata.delay") as ext,
-        patch("src.tasks.send_file_alert.delay") as alert,
+        patch.object(tasks_mod.extract_file_metadata, "delay", new_callable=MagicMock) as ext,
+        patch.object(tasks_mod.send_file_alert, "delay", new_callable=MagicMock) as alert,
     ):
         yield ext, alert
 
@@ -59,9 +59,9 @@ class TestScanFileForThreats:
             .scalars()
             .all()
         )
-        assert len(results) == 1
-        assert results[0].check_name == "basic_scan"
-        assert results[0].status == "clean"
+        # New implementation: checks run but return None for clean files
+        # No fake basic_scan result is added
+        assert len(results) == 0
 
     async def test_suspicious_extension(self, db_session, no_delay):
         f = StoredFile(
@@ -452,7 +452,9 @@ class TestSendFileAlert:
         alerts = (await db_session.execute(select(Alert))).scalars().all()
         assert len(alerts) == 1
         assert alerts[0].level == "warning"
-        assert alerts[0].message == "File requires attention: suspicious extension .exe; file is larger than 10 MB"
+        # Order may vary, check both messages are present
+        assert "suspicious extension .exe" in alerts[0].message
+        assert "file is larger than 10 MB" in alerts[0].message
 
     async def test_critical_alert(self, db_session, no_delay):
         f = StoredFile(
@@ -481,10 +483,4 @@ class TestSendFileAlert:
         assert len(alerts) == 0
 
 
-class TestRunAsync:
-    def test_runs_coroutine(self):
-        async def sample():
-            return 42
-
-        result = tasks_mod.run_async(sample())
-        assert result == 42
+# TestRunAsync removed - run_async function no longer exists

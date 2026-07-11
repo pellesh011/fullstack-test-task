@@ -33,8 +33,14 @@ class Settings(BaseSettings):
     )
 
     max_file_size_mb: int = 10
+    max_file_size_warning_mb: int = 8192
     suspicious_extensions: str = ".exe,.bat,.cmd,.sh,.js"
     redis_reconnect_delay: float = 3.0
+
+    db_pool_size: int = 10
+    db_max_overflow: int = 20
+    db_pool_recycle: int = 3600
+    db_pool_pre_ping: bool = True
 
     @property
     def cors_origins_parsed(self) -> list[str]:

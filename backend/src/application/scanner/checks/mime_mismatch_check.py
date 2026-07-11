@@ -91,6 +91,10 @@ KNOWN_MIME_TYPES: dict[str, set[str]] = {
 
 
 class MimeMismatchCheck(ScanCheck):
+    @property
+    def check_name(self) -> str:
+        return "mime_mismatch"
+
     def check(self, file: StoredFile) -> ScanResult | None:
         issues: list[str] = []
 

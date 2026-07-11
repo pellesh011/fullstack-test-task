@@ -1,14 +1,19 @@
 from uuid import uuid4
 from pathlib import Path
+import logging
 
 from fastapi import HTTPException, UploadFile, status
 import magic
 
+from src.core.config import settings
 from src.domain.events import FileCreated
 from src.domain.interfaces.event_bus import EventBus
 from src.domain.interfaces.file_storage import FileStorage
 from src.domain.interfaces.repositories import FileRepository
 from src.models import StoredFile
+
+
+logger = logging.getLogger(__name__)
 
 
 class FileService:
@@ -34,6 +39,17 @@ class FileService:
         return file_item
 
     async def create_file(self, title: str, upload_file: UploadFile) -> StoredFile:
+        if (
+            upload_file.size is not None
+            and upload_file.size > settings.max_file_size_warning_mb * 1024 * 1024
+        ):
+            logger.warning(
+                "File '%s' exceeds size warning limit: %d MB > %d MB",
+                upload_file.filename,
+                upload_file.size // (1024 * 1024),
+                settings.max_file_size_warning_mb,
+            )
+
         content = await upload_file.read()
         if not content:
             raise HTTPException(
@@ -44,20 +60,30 @@ class FileService:
         suffix = Path(upload_file.filename or "").suffix
         stored_name = f"{file_id}{suffix}"
 
-        self._file_storage.save(stored_name, content)
+        await self._file_storage.save(stored_name, content)
+
+        try:
+            detected_mime = magic.from_buffer(content, mime=True)
+        except magic.MagicException:
+            detected_mime = upload_file.content_type or "application/octet-stream"
 
         file_item = StoredFile(
             id=file_id,
             title=title,
             original_name=upload_file.filename or stored_name,
             stored_name=stored_name,
-            mime_type=magic.from_buffer(content, mime=True),
+            mime_type=detected_mime,
             original_mime_type=upload_file.content_type,
             size=len(content),
             processing_status="uploaded",
         )
-        saved = await self._file_repo.save(file_item)
-        await self._event_bus.publish(FileCreated(file_id=saved.id))
+        try:
+            saved = await self._file_repo.save(file_item)
+            await self._event_bus.publish(FileCreated(file_id=saved.id))
+        except Exception:
+            await self._file_storage.delete(stored_name)
+            raise
+
         return saved
 
     async def update_file(self, file_id: str, title: str) -> StoredFile:
@@ -80,7 +106,7 @@ class FileService:
         await self._file_repo.flush()
 
         try:
-            self._file_storage.delete(file_item.stored_name)
+            await self._file_storage.delete(file_item.stored_name)
         except Exception:
             await self._file_repo.rollback()
             raise HTTPException(
@@ -92,7 +118,9 @@ class FileService:
 
     def get_storage_path(self, file_item: StoredFile) -> Path:
         path = self._file_storage.get_path(file_item.stored_name)
-        if not self._file_storage.exists(file_item.stored_name):
+        # Note: exists is now async, but this method is sync.
+        # We check path existence directly since we already have the path.
+        if not path.exists():
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Stored file not found"
             )

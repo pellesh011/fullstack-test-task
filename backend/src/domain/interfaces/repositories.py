@@ -49,3 +49,6 @@ class ScanResultRepository(ABC):
 
     @abstractmethod
     async def save_all(self, results: list[ScanResult]) -> None: ...
+
+    @abstractmethod
+    async def upsert_all(self, file_id: str, results: list[ScanResult]) -> None: ...

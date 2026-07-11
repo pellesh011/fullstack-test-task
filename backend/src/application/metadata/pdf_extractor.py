@@ -1,3 +1,4 @@
+import aiofiles
 from pathlib import Path
 
 from src.domain.interfaces.metadata_extractor import MetadataExtractor
@@ -9,8 +10,9 @@ class PdfMetadataExtractor(MetadataExtractor):
     def can_handle(mime_type: str) -> bool:
         return mime_type == "application/pdf"
 
-    def extract(self, file: StoredFile, stored_path: Path) -> dict:
-        content = stored_path.read_bytes()
+    async def extract(self, file: StoredFile, stored_path: Path) -> dict:
+        async with aiofiles.open(stored_path, "rb") as f:
+            content = await f.read()
         return {
             "extension": Path(file.original_name).suffix.lower(),
             "size_bytes": file.size,
