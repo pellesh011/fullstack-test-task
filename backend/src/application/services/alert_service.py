@@ -19,15 +19,17 @@ class AlertService:
         requires_attention: bool,
         scan_status: str | None,
         file_id: str,
+        scan_result_messages: list[str] | None = None,
     ) -> Alert:
         if processing_status == "failed":
             return await self.create_alert(
                 file_id, "critical", "File processing failed"
             )
         if requires_attention:
-            return await self.create_alert(
-                file_id,
-                "warning",
-                f"File requires attention: status={scan_status}",
-            )
+            if scan_result_messages:
+                details = "; ".join(scan_result_messages)
+                message = f"File requires attention: {details}"
+            else:
+                message = f"File requires attention: status={scan_status}"
+            return await self.create_alert(file_id, "warning", message)
         return await self.create_alert(file_id, "info", "File processed successfully")

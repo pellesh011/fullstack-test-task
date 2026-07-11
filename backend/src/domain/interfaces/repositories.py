@@ -40,6 +40,11 @@ class ScanResultRepository(ABC):
     async def list_for_file(self, file_id: str) -> Sequence[ScanResult]: ...
 
     @abstractmethod
+    async def list_for_file_by_status(
+        self, file_id: str, status: str
+    ) -> Sequence[ScanResult]: ...
+
+    @abstractmethod
     async def delete_for_file(self, file_id: str) -> None: ...
 
     @abstractmethod

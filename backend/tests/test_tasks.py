@@ -428,12 +428,31 @@ class TestSendFileAlert:
         db_session.add(f)
         await db_session.commit()
 
+        # Add scan results with suspicious/error status
+        db_session.add_all(
+            [
+                ScanResult(
+                    file_id="warn1",
+                    check_name="suspicious_extension",
+                    status="suspicious",
+                    message="suspicious extension .exe",
+                ),
+                ScanResult(
+                    file_id="warn1",
+                    check_name="file_size",
+                    status="suspicious",
+                    message="file is larger than 10 MB",
+                ),
+            ]
+        )
+        await db_session.commit()
+
         await tasks_mod._send_file_alert("warn1")
 
         alerts = (await db_session.execute(select(Alert))).scalars().all()
         assert len(alerts) == 1
         assert alerts[0].level == "warning"
-        assert "requires attention" in alerts[0].message
+        assert alerts[0].message == "File requires attention: suspicious extension .exe; file is larger than 10 MB"
 
     async def test_critical_alert(self, db_session, no_delay):
         f = StoredFile(
