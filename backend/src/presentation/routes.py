@@ -8,9 +8,7 @@ from src.presentation.dependencies import (
     get_alert_service,
     get_file_service,
 )
-from src.infrastructure.repositories.scan_result_repository import (
-    SQLScanResultRepository,
-)
+from src.domain.interfaces.repositories import ScanResultRepository
 from src.presentation.dependencies import get_scan_result_repo
 
 router = APIRouter()
@@ -75,7 +73,7 @@ async def download_file(
 async def list_scan_results_view(
     file_id: str,
     file_service: FileService = Depends(get_file_service),
-    scan_result_repo: SQLScanResultRepository = Depends(get_scan_result_repo),
+    scan_result_repo: ScanResultRepository = Depends(get_scan_result_repo),
 ):
     await file_service.get_file(file_id)
     return list(await scan_result_repo.list_for_file(file_id))

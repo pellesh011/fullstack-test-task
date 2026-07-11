@@ -15,13 +15,20 @@ class DatabaseSessionManager:
     def _ensure(self) -> None:
         if self._engine is not None:
             return
-        self._engine = create_async_engine(self._database_url)
+        self._engine = create_async_engine(
+            self._database_url,
+            pool_size=settings.db_pool_size,
+            max_overflow=settings.db_max_overflow,
+            pool_recycle=settings.db_pool_recycle,
+            pool_pre_ping=settings.db_pool_pre_ping,
+        )
         self._session_maker = async_sessionmaker(self._engine, expire_on_commit=False)
 
     @asynccontextmanager
     async def session(self) -> AsyncGenerator[AsyncSession, None]:
         self._ensure()
-        async with self._session_maker() as s:  # type: ignore
+        assert self._session_maker is not None
+        async with self._session_maker() as s:
             yield s
 
     async def dispose(self) -> None:

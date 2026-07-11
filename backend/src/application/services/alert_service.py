@@ -1,3 +1,4 @@
+from src.domain.enums import AlertLevel
 from src.domain.interfaces.repositories import AlertRepository
 from src.models import Alert
 
@@ -9,8 +10,10 @@ class AlertService:
     async def list_alerts(self) -> list[Alert]:
         return list(await self._alert_repo.list_all())
 
-    async def create_alert(self, file_id: str, level: str, message: str) -> Alert:
-        alert = Alert(file_id=file_id, level=level, message=message)
+    async def create_alert(
+        self, file_id: str, level: AlertLevel, message: str
+    ) -> Alert:
+        alert = Alert(file_id=file_id, level=level.value, message=message)
         return await self._alert_repo.save(alert)
 
     async def create_alert_for_file(
@@ -23,7 +26,7 @@ class AlertService:
     ) -> Alert:
         if processing_status == "failed":
             return await self.create_alert(
-                file_id, "critical", "File processing failed"
+                file_id, AlertLevel.CRITICAL, "File processing failed"
             )
         if requires_attention:
             if scan_result_messages:
@@ -31,5 +34,7 @@ class AlertService:
                 message = f"File requires attention: {details}"
             else:
                 message = f"File requires attention: status={scan_status}"
-            return await self.create_alert(file_id, "warning", message)
-        return await self.create_alert(file_id, "info", "File processed successfully")
+            return await self.create_alert(file_id, AlertLevel.WARNING, message)
+        return await self.create_alert(
+            file_id, AlertLevel.INFO, "File processed successfully"
+        )
