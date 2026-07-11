@@ -71,9 +71,8 @@ src/
 
 ```
 backend/src/
-├── domain/                       # Чистая доменные модели, интерфейсы, события
+├── domain/                       # Чистая доменные модели, интерфейсы
 │   ├── entities/                 # StoredFile, Alert, ScanResult
-│   ├── events.py                 # FileCreated (domain event) — published via Celery
 │   ├── interfaces/
 │   │   ├── repositories.py       # FileRepository, AlertRepository, ScanResultRepository
 │   │   ├── storage.py            # FileStorage
@@ -87,8 +86,7 @@ backend/src/
 │   │       ├── checks/           # 8 проверок (extension, size, mime, magic, pdf, text, executable, archive)
 │   │       ├── orchestrator.py   # последовательный запуск чеков
 │   │       └── service.py        # ScannerService
-│   ├── dto.py                    # FileCreate, FileUpdate, AlertCreate, ScanResultCreate
-│   └── events/handlers.py        # FileCreatedHandler → ScannerService
+│   └── dto.py                    # FileCreate, FileUpdate, AlertCreate, ScanResultCreate
 ├── infrastructure/               # Реализации интерфейсов
 │   ├── database/
 │   │   ├── session.py            # DatabaseSessionManager (lazy init, pool)
@@ -175,7 +173,6 @@ presentation → application → domain ← infrastructure
 
 - `GET /files/{id}/scan-results` — детальные результаты сканирования
 - `original_mime_type` — аудит client MIME vs реальный MIME
-- Domain Event `FileCreated` через Celery task (`scan_file_for_threats.delay()`)
 - Alembic миграции (3 версии: init, scan_results, alerts)
 - `AlertService` с детальными сообщениями из scan results
 
