@@ -2,14 +2,15 @@
 
 import { FormEvent, useState } from "react";
 import { Button, Form, Modal } from "react-bootstrap";
+import { uploadFile } from "../api/uploadFile";
 
-type Props = {
+interface UploadModalProps {
   show: boolean;
   onHide: () => void;
   onSubmit: (title: string, file: File) => Promise<void>;
-};
+}
 
-export function UploadModal({ show, onHide, onSubmit }: Props) {
+export function UploadModal({ show, onHide, onSubmit }: UploadModalProps) {
   const [title, setTitle] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);

@@ -1,0 +1,1 @@
+export { AlertsWidget } from "./ui/AlertsWidget";
