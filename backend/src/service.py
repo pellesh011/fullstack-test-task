@@ -1,5 +1,4 @@
 import mimetypes
-import os
 from pathlib import Path
 from uuid import uuid4
 
@@ -7,20 +6,12 @@ from fastapi import HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 
+from src.core.config import settings
 from src.models import Alert, ScanResult, StoredFile
 
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-STORAGE_DIR = BASE_DIR / "storage" / "files"
-STORAGE_DIR.mkdir(parents=True, exist_ok=True)
-
-
 def get_db_url() -> str:
-    return (
-        f"postgresql+asyncpg://{os.environ['POSTGRES_USER']}:"
-        f"{os.environ['POSTGRES_PASSWORD']}@{os.environ['POSTGRES_HOST']}:"
-        f"{os.environ.get('PGPORT', '5432')}/{os.environ['POSTGRES_DB']}"
-    )
+    return settings.database_url
 
 
 _engine = None
@@ -41,6 +32,12 @@ def get_session_maker():
     if _session_maker is None:
         _session_maker = async_sessionmaker(get_engine(), expire_on_commit=False)
     return _session_maker
+
+
+def _get_storage_dir() -> Path:
+    path = settings.resolved_storage_dir
+    path.mkdir(parents=True, exist_ok=True)
+    return path
 
 
 async def list_files() -> list[StoredFile]:
@@ -77,7 +74,7 @@ async def create_file(title: str, upload_file: UploadFile) -> StoredFile:
     file_id = str(uuid4())
     suffix = Path(upload_file.filename or "").suffix
     stored_name = f"{file_id}{suffix}"
-    stored_path = STORAGE_DIR / stored_name
+    stored_path = _get_storage_dir() / stored_name
     stored_path.write_bytes(content)
 
     file_item = StoredFile(
@@ -118,7 +115,7 @@ async def delete_file(file_id: str) -> None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="File not found"
             )
-        stored_path = STORAGE_DIR / file_item.stored_name
+        stored_path = _get_storage_dir() / file_item.stored_name
         if stored_path.exists():
             stored_path.unlink()
         await session.delete(file_item)
@@ -127,7 +124,7 @@ async def delete_file(file_id: str) -> None:
 
 async def get_file_path(file_id: str) -> tuple[StoredFile, Path]:
     file_item = await get_file(file_id)
-    stored_path = STORAGE_DIR / file_item.stored_name
+    stored_path = _get_storage_dir() / file_item.stored_name
     if not stored_path.exists():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Stored file not found"
