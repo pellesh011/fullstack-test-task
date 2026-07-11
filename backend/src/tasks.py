@@ -106,10 +106,19 @@ async def _send_file_alert(file_id: str) -> None:
     async with _db.session() as session:
         file_repo = SQLFileRepository(session)
         alert_repo = SQLAlertRepository(session)
+        scan_result_repo = SQLScanResultRepository(session)
 
         file_item = await file_repo.get_by_id(file_id)
         if not file_item:
             return
+
+        scan_results = await scan_result_repo.list_for_file_by_status(
+            file_id, "suspicious"
+        )
+        error_results = await scan_result_repo.list_for_file_by_status(file_id, "error")
+        suspicious_messages = [sr.message for sr in scan_results if sr.message]
+        error_messages = [sr.message for sr in error_results if sr.message]
+        all_messages = suspicious_messages + error_messages
 
         alert_service = AlertService(alert_repo=alert_repo)
         await alert_service.create_alert_for_file(
@@ -117,6 +126,7 @@ async def _send_file_alert(file_id: str) -> None:
             requires_attention=file_item.requires_attention,
             scan_status=file_item.scan_status,
             file_id=file_id,
+            scan_result_messages=all_messages,
         )
 
 

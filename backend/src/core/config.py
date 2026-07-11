@@ -1,10 +1,22 @@
 import os
 from pathlib import Path
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def parse_comma_separated(v: str | list[str]) -> list[str]:
+    if isinstance(v, str):
+        return [item.strip() for item in v.split(",") if item.strip()]
+    return v
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
     postgres_user: str = "postgres"
     postgres_password: str = "postgres"
     postgres_host: str = "localhost"
@@ -14,17 +26,23 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     celery_broker_url: str = ""
 
-    cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
 
     storage_dir: str = str(
         Path(__file__).resolve().parent.parent.parent / "storage" / "files"
     )
 
     max_file_size_mb: int = 10
-    suspicious_extensions: list[str] = [".exe", ".bat", ".cmd", ".sh", ".js"]
+    suspicious_extensions: str = ".exe,.bat,.cmd,.sh,.js"
     redis_reconnect_delay: float = 3.0
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
+    @property
+    def cors_origins_parsed(self) -> list[str]:
+        return parse_comma_separated(self.cors_origins)
+
+    @property
+    def suspicious_extensions_parsed(self) -> list[str]:
+        return parse_comma_separated(self.suspicious_extensions)
 
     @property
     def resolved_redis_url(self) -> str:

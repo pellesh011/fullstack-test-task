@@ -466,6 +466,18 @@ class TestCreateAlertForFile:
         assert alert.level == "warning"
         assert "requires attention" in alert.message
 
+    async def test_warning_alert_with_scan_messages(self, db_session):
+        svc = AlertService(alert_repo=SQLAlertRepository(db_session))
+        alert = await svc.create_alert_for_file(
+            processing_status="processed",
+            requires_attention=True,
+            scan_status="suspicious",
+            file_id="f1",
+            scan_result_messages=["suspicious extension .exe", "file is larger than 10 MB"],
+        )
+        assert alert.level == "warning"
+        assert alert.message == "File requires attention: suspicious extension .exe; file is larger than 10 MB"
+
     async def test_critical_alert(self, db_session):
         svc = AlertService(alert_repo=SQLAlertRepository(db_session))
         alert = await svc.create_alert_for_file(

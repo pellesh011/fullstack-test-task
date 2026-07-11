@@ -1,6 +1,7 @@
 services:
   backend:
     build: ./backend
+    entrypoint: ["/entrypoint.sh"]
     command: uvicorn src.app:app --host 0.0.0.0 --reload --port 8000
     container_name: backend
     volumes:
@@ -13,6 +14,7 @@ services:
 
   backend-worker:
     build: ./backend
+    entrypoint: ["/entrypoint.sh"]
     command: [ 'celery', '-A', 'src.tasks.celery_app', 'worker', '-l', 'info' ]
     container_name: backend-worker
     env_file: ".env.dev"
