@@ -9,7 +9,7 @@ class DefaultMetadataExtractor(MetadataExtractor):
     def can_handle(mime_type: str) -> bool:
         return True
 
-    def extract(self, file: StoredFile, stored_path: Path) -> dict:
+    async def extract(self, file: StoredFile, stored_path: Path) -> dict:
         return {
             "extension": Path(file.original_name).suffix.lower(),
             "size_bytes": file.size,

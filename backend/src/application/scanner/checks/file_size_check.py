@@ -4,6 +4,10 @@ from src.models import ScanResult, StoredFile
 
 
 class FileSizeCheck(ScanCheck):
+    @property
+    def check_name(self) -> str:
+        return "file_size"
+
     def check(self, file: StoredFile) -> ScanResult | None:
         max_bytes = settings.max_file_size_mb * 1024 * 1024
         if file.size > max_bytes:

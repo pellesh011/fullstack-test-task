@@ -1,4 +1,6 @@
 import asyncio
+import logging
+from pathlib import Path
 
 from celery import Celery
 
@@ -18,9 +20,11 @@ from src.infrastructure.repositories.file_repository import SQLFileRepository
 from src.infrastructure.repositories.scan_result_repository import (
     SQLScanResultRepository,
 )
-from src.infrastructure.event_bus.subscriber import start_event_subscriber
+from src.infrastructure.event_bus.subscriber import TaskRegistry
 from src.infrastructure.storage.local_file_storage import LocalFileStorage
 from src.models import ScanResult
+
+logger = logging.getLogger(__name__)
 
 celery_app = Celery(
     "file_tasks",
@@ -30,15 +34,6 @@ celery_app = Celery(
 
 _db = DatabaseSessionManager()
 _storage: FileStorage = LocalFileStorage(settings.resolved_storage_dir)
-_worker_loop: asyncio.AbstractEventLoop | None = None
-
-
-def run_async(coroutine):
-    global _worker_loop
-    if _worker_loop is None or _worker_loop.is_closed():
-        _worker_loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(_worker_loop)
-    return _worker_loop.run_until_complete(coroutine)
 
 
 async def _scan_file_for_threats(file_id: str) -> None:
@@ -48,6 +43,7 @@ async def _scan_file_for_threats(file_id: str) -> None:
 
         file_item = await file_repo.get_by_id(file_id)
         if not file_item:
+            logger.warning("File %s not found for scanning", file_id)
             return
 
         file_item.processing_status = "processing"
@@ -76,10 +72,11 @@ async def _extract_file_metadata(file_id: str) -> None:
 
         file_item = await file_repo.get_by_id(file_id)
         if not file_item:
+            logger.warning("File %s not found for metadata extraction", file_id)
             return
 
         stored_path = _storage.get_path(file_item.stored_name)
-        if not _storage.exists(file_item.stored_name):
+        if not await _storage.exists(file_item.stored_name):
             file_item.processing_status = "failed"
             file_item.scan_status = file_item.scan_status or "failed"
             scan_result = ScanResult(
@@ -93,7 +90,7 @@ async def _extract_file_metadata(file_id: str) -> None:
             send_file_alert.delay(file_id)
             return
 
-        metadata = extract_metadata(file_item, stored_path)
+        metadata = await extract_metadata(file_item, stored_path)
 
         file_item.metadata_json = metadata
         file_item.processing_status = "processed"
@@ -110,6 +107,7 @@ async def _send_file_alert(file_id: str) -> None:
 
         file_item = await file_repo.get_by_id(file_id)
         if not file_item:
+            logger.warning("File %s not found for alert creation", file_id)
             return
 
         scan_results = await scan_result_repo.list_for_file_by_status(
@@ -132,17 +130,20 @@ async def _send_file_alert(file_id: str) -> None:
 
 @celery_app.task
 def scan_file_for_threats(file_id: str) -> None:
-    run_async(_scan_file_for_threats(file_id))
+    asyncio.run(_scan_file_for_threats(file_id))
 
 
 @celery_app.task
 def extract_file_metadata(file_id: str) -> None:
-    run_async(_extract_file_metadata(file_id))
+    asyncio.run(_extract_file_metadata(file_id))
 
 
 @celery_app.task
 def send_file_alert(file_id: str) -> None:
-    run_async(_send_file_alert(file_id))
+    asyncio.run(_send_file_alert(file_id))
 
 
-start_event_subscriber()
+# Register tasks for event subscriber
+TaskRegistry.register("scan_file_for_threats", scan_file_for_threats)
+TaskRegistry.register("extract_file_metadata", extract_file_metadata)
+TaskRegistry.register("send_file_alert", send_file_alert)

@@ -1,6 +1,7 @@
 from collections.abc import Sequence
 
 from sqlalchemy import delete, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.interfaces.repositories import ScanResultRepository
@@ -37,3 +38,27 @@ class SQLScanResultRepository(ScanResultRepository):
 
     async def save_all(self, results: list[ScanResult]) -> None:
         self._session.add_all(results)
+
+    async def upsert_all(self, file_id: str, results: list[ScanResult]) -> None:
+        if not results:
+            return
+
+        stmt = pg_insert(ScanResult).values(
+            [
+                {
+                    "file_id": file_id,
+                    "check_name": r.check_name,
+                    "status": r.status,
+                    "message": r.message,
+                }
+                for r in results
+            ]
+        )
+        stmt = stmt.on_conflict_do_update(
+            index_elements=["file_id", "check_name"],
+            set_={
+                "status": stmt.excluded.status,
+                "message": stmt.excluded.message,
+            },
+        )
+        await self._session.execute(stmt)

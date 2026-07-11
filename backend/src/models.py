@@ -9,6 +9,7 @@ from sqlalchemy import (
     JSON,
     String,
     Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -54,7 +55,7 @@ class Alert(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     file_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("files.id"), nullable=False
+        String(36), ForeignKey("files.id", ondelete="CASCADE"), nullable=False
     )
     level: Mapped[str] = mapped_column(String(50), nullable=False)
     message: Mapped[str] = mapped_column(Text, nullable=False)
@@ -67,10 +68,13 @@ class Alert(Base):
 
 class ScanResult(Base):
     __tablename__ = "scan_results"
+    __table_args__ = (
+        UniqueConstraint("file_id", "check_name", name="uq_scan_result_file_check"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     file_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("files.id"), nullable=False
+        String(36), ForeignKey("files.id", ondelete="CASCADE"), nullable=False
     )
     check_name: Mapped[str] = mapped_column(String(100), nullable=False)
     status: Mapped[str] = mapped_column(String(50), nullable=False)

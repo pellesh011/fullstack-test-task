@@ -1,6 +1,6 @@
-from pathlib import Path
-
+import asyncio
 import magic
+from pathlib import Path
 
 from src.application.metadata.default_extractor import DefaultMetadataExtractor
 from src.application.metadata.pdf_extractor import PdfMetadataExtractor
@@ -17,10 +17,14 @@ def get_extractors() -> list[type[MetadataExtractor]]:
     ]
 
 
-def extract_metadata(file: StoredFile, stored_path: Path) -> dict:
-    real_mime = magic.from_file(str(stored_path), mime=True)
+async def extract_metadata(file: StoredFile, stored_path: Path) -> dict:
+    real_mime = await asyncio.to_thread(magic.from_file, str(stored_path), mime=True)
     result: dict = {}
     for cls in get_extractors():
         if cls.can_handle(real_mime):
-            result.update(cls().extract(file, stored_path))
+            extractor = cls()
+            extracted = await extractor.extract(file, stored_path)
+            for key, value in extracted.items():
+                if key not in result:
+                    result[key] = value
     return result

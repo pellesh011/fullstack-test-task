@@ -90,10 +90,3 @@ def get_threat_scanner(
         ],
         scan_result_repo=scan_result_repo,
     )
-
-
-async def get_metadata_extractor_for_file(
-    file_service: FileService = Depends(get_file_service),
-    file_id: str | None = None,
-):
-    return extract_metadata
