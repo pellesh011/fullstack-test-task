@@ -1,9 +1,9 @@
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 import src.tasks as tasks_mod
 from sqlalchemy import select
-from src.models import Alert, ScanResult, StoredFile
+from src.infrastructure.database.models import Alert, ScanResult, StoredFile
 
 
 @pytest.fixture(autouse=True)

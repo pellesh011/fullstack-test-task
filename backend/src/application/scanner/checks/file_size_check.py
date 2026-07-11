@@ -1,6 +1,6 @@
 from src.core.config import settings
 from src.domain.interfaces.scan_check import ScanCheck
-from src.models import ScanResult, StoredFile
+from src.infrastructure.database.models import ScanResult, StoredFile
 
 
 class FileSizeCheck(ScanCheck):

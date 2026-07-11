@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.interfaces.repositories import AlertRepository
-from src.models import Alert
+from src.infrastructure.database.models import Alert
 
 
 class SQLAlertRepository(AlertRepository):

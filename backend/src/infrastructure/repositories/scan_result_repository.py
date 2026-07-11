@@ -5,7 +5,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.interfaces.repositories import ScanResultRepository
-from src.models import ScanResult
+from src.infrastructure.database.models import ScanResult
 
 
 class SQLScanResultRepository(ScanResultRepository):

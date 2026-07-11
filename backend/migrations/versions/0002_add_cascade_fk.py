@@ -8,7 +8,6 @@ Create Date: 2026-07-11 00:00:00.000000
 from typing import Sequence, Union
 
 from alembic import op
-import sqlalchemy as sa
 
 
 revision: str = "0002_add_cascade_fk"

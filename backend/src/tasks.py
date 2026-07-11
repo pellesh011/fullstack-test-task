@@ -13,14 +13,14 @@ from src.application.scanner.threat_scanner import ThreatScanner
 from src.application.services.alert_service import AlertService
 from src.core.config import settings
 from src.domain.interfaces.file_storage import FileStorage
-from src.infrastructure.database import DatabaseSessionManager
+from src.infrastructure import DatabaseSessionManager
 from src.infrastructure.repositories.alert_repository import SQLAlertRepository
 from src.infrastructure.repositories.file_repository import SQLFileRepository
 from src.infrastructure.repositories.scan_result_repository import (
     SQLScanResultRepository,
 )
 from src.infrastructure.storage.local_file_storage import LocalFileStorage
-from src.models import ScanResult
+from src.infrastructure.database.models import ScanResult
 
 logger = logging.getLogger(__name__)
 

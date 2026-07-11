@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from src.models import ScanResult, StoredFile
+from src.infrastructure.database.models import ScanResult, StoredFile
 
 
 class ScanCheck(ABC):

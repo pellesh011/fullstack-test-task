@@ -89,6 +89,7 @@ backend/src/
 │   └── dto.py                    # FileCreate, FileUpdate, AlertCreate, ScanResultCreate
 ├── infrastructure/               # Реализации интерфейсов
 │   ├── database/
+│   │   ├── models/               # SQLAlchemy ORM модели (table definitions)
 │   │   ├── session.py            # DatabaseSessionManager (lazy init, pool)
 │   │   └── repositories/         # SQLFileRepository, SQLAlertRepository, SQLScanResultRepository
 │   ├── storage/
@@ -106,7 +107,6 @@ backend/src/
 │   └── main.py                   # FastAPI app, lifespan, CORS, exception handlers
 ├── core/
 │   └── config.py                 # Pydantic BaseSettings (env-driven)
-└── models/                       # SQLAlchemy ORM модели (table definitions)
 ```
 
 **Поток зависимостей:**

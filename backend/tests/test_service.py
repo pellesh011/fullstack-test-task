@@ -13,7 +13,7 @@ from src.infrastructure.repositories.scan_result_repository import (
     SQLScanResultRepository,
 )
 from src.infrastructure.storage.local_file_storage import LocalFileStorage
-from src.models import ScanResult, StoredFile
+from src.infrastructure.database.models import ScanResult, StoredFile
 
 pytestmark = pytest.mark.asyncio
 

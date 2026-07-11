@@ -1,7 +1,7 @@
 import logging
 from src.domain.interfaces.repositories import ScanResultRepository
 from src.domain.interfaces.scan_check import ScanCheck
-from src.models import ScanResult, StoredFile
+from src.infrastructure.database.models import ScanResult, StoredFile
 
 
 logger = logging.getLogger(__name__)

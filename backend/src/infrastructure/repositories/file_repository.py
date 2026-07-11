@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.interfaces.repositories import FileRepository
-from src.models import StoredFile
+from src.infrastructure.database.models import StoredFile
 
 
 class SQLFileRepository(FileRepository):

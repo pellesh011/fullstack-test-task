@@ -1,7 +1,7 @@
 import pytest
 
 from src.application.scanner.checks.mime_mismatch_check import MimeMismatchCheck
-from src.models import StoredFile
+from src.infrastructure.database.models import StoredFile
 
 
 @pytest.fixture

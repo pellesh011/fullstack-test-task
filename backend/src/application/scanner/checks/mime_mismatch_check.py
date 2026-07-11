@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from src.domain.interfaces.scan_check import ScanCheck
-from src.models import ScanResult, StoredFile
+from src.infrastructure.database.models import ScanResult, StoredFile
 
 KNOWN_MIME_TYPES: dict[str, set[str]] = {
     ".pdf": {"application/pdf"},
