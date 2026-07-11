@@ -41,7 +41,9 @@ class RedisEventBus(EventBus):
                 )
                 await asyncio.sleep(delay)
 
-        logger.error("RedisEventBus: publish failed after %d retries", self._max_retries)
+        logger.error(
+            "RedisEventBus: publish failed after %d retries", self._max_retries
+        )
         if last_exception:
             raise last_exception
         raise RuntimeError("RedisEventBus: publish failed")

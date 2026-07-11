@@ -52,7 +52,9 @@ def _listen():
                             if scan_task:
                                 scan_task.delay(file_id)
                             else:
-                                logger.warning("scan_file_for_threats task not registered")
+                                logger.warning(
+                                    "scan_file_for_threats task not registered"
+                                )
                 except Exception:
                     logger.exception("event subscriber: failed to process event")
         except ConnectionError:

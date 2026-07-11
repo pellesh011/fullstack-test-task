@@ -10,7 +10,9 @@ class AlertService:
     async def list_alerts(self) -> list[Alert]:
         return list(await self._alert_repo.list_all())
 
-    async def create_alert(self, file_id: str, level: AlertLevel, message: str) -> Alert:
+    async def create_alert(
+        self, file_id: str, level: AlertLevel, message: str
+    ) -> Alert:
         alert = Alert(file_id=file_id, level=level.value, message=message)
         return await self._alert_repo.save(alert)
 
@@ -33,4 +35,6 @@ class AlertService:
             else:
                 message = f"File requires attention: status={scan_status}"
             return await self.create_alert(file_id, AlertLevel.WARNING, message)
-        return await self.create_alert(file_id, AlertLevel.INFO, "File processed successfully")
+        return await self.create_alert(
+            file_id, AlertLevel.INFO, "File processed successfully"
+        )

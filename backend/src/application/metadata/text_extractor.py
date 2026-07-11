@@ -11,7 +11,9 @@ class TextMetadataExtractor(MetadataExtractor):
         return mime_type.startswith("text/")
 
     async def extract(self, file: StoredFile, stored_path: Path) -> dict:
-        async with aiofiles.open(stored_path, "r", encoding="utf-8", errors="ignore") as f:
+        async with aiofiles.open(
+            stored_path, "r", encoding="utf-8", errors="ignore"
+        ) as f:
             content = await f.read()
         return {
             "extension": Path(file.original_name).suffix.lower(),

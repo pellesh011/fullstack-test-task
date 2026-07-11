@@ -44,7 +44,9 @@ def get_event_bus_instance() -> RedisEventBus:
 
 @app.exception_handler(OperationalError)
 @app.exception_handler(DBAPIError)
-async def db_connection_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+async def db_connection_exception_handler(
+    request: Request, exc: Exception
+) -> JSONResponse:
     return JSONResponse(
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         content={"detail": "Database unavailable, please try again later"},
@@ -53,7 +55,9 @@ async def db_connection_exception_handler(request: Request, exc: Exception) -> J
 
 @app.exception_handler(RedisConnectionError)
 @app.exception_handler(RedisError)
-async def redis_connection_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+async def redis_connection_exception_handler(
+    request: Request, exc: Exception
+) -> JSONResponse:
     return JSONResponse(
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         content={"detail": "Event service unavailable, please try again later"},
@@ -80,7 +84,11 @@ async def health_check() -> JSONResponse:
     except Exception:
         pass
 
-    status_code = status.HTTP_200_OK if (db_ok and redis_ok) else status.HTTP_503_SERVICE_UNAVAILABLE
+    status_code = (
+        status.HTTP_200_OK
+        if (db_ok and redis_ok)
+        else status.HTTP_503_SERVICE_UNAVAILABLE
+    )
 
     return JSONResponse(
         status_code=status_code,

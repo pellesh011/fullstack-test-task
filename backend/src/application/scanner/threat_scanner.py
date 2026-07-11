@@ -23,15 +23,23 @@ class ThreatScanner:
                 result = check.check(file)
                 if result is not None:
                     # Use check_name from the check class
-                    if hasattr(check, 'check_name'):
+                    if hasattr(check, "check_name"):
                         result.check_name = check.check_name
                     results.append(result)
             except Exception as e:
-                logger.exception("Scan check %s failed for file %s", check.__class__.__name__, file.id)
+                logger.exception(
+                    "Scan check %s failed for file %s",
+                    check.__class__.__name__,
+                    file.id,
+                )
                 results.append(
                     ScanResult(
                         file_id=file.id,
-                        check_name=getattr(check, 'check_name', check.__class__.__name__.lower().replace("check", "")),
+                        check_name=getattr(
+                            check,
+                            "check_name",
+                            check.__class__.__name__.lower().replace("check", ""),
+                        ),
                         status="error",
                         message=f"Check failed: {e}",
                     )
