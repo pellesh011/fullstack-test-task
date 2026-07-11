@@ -19,6 +19,17 @@ class SQLScanResultRepository(ScanResultRepository):
         )
         return list(result.scalars().all())
 
+    async def list_for_file_by_status(
+        self, file_id: str, status: str
+    ) -> Sequence[ScanResult]:
+        result = await self._session.execute(
+            select(ScanResult)
+            .where(ScanResult.file_id == file_id)
+            .where(ScanResult.status == status)
+            .order_by(ScanResult.created_at.desc())
+        )
+        return list(result.scalars().all())
+
     async def delete_for_file(self, file_id: str) -> None:
         await self._session.execute(
             delete(ScanResult).where(ScanResult.file_id == file_id)
