@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from celery import Celery
-from celery.signals import worker_ready, worker_shutdown
+from celery.signals import worker_shutdown
 
 from src.application.metadata.extractor_registry import extract_metadata
 from src.application.scanner.checks.file_size_check import FileSizeCheck
@@ -19,7 +19,6 @@ from src.infrastructure.repositories.file_repository import SQLFileRepository
 from src.infrastructure.repositories.scan_result_repository import (
     SQLScanResultRepository,
 )
-from src.infrastructure.event_bus.subscriber import TaskRegistry, start_event_subscriber
 from src.infrastructure.storage.local_file_storage import LocalFileStorage
 from src.models import ScanResult
 
@@ -44,12 +43,6 @@ def _get_worker_loop() -> asyncio.AbstractEventLoop:
         _worker_loop = asyncio.new_event_loop()
         asyncio.set_event_loop(_worker_loop)
     return _worker_loop
-
-
-@worker_ready.connect
-def _start_event_subscriber(**kwargs):
-    logger.info("Celery worker ready, starting event subscriber")
-    start_event_subscriber()
 
 
 @worker_shutdown.connect
@@ -87,7 +80,7 @@ async def _scan_file_for_threats(file_id: str) -> None:
         file_item.requires_attention = has_suspicious
         await session.commit()
 
-    extract_file_metadata.delay(file_id)
+    extract_file_metadata.delay(file_id)  # type: ignore[attr-defined]
 
 
 async def _extract_file_metadata(file_id: str) -> None:
@@ -111,7 +104,7 @@ async def _extract_file_metadata(file_id: str) -> None:
             )
             session.add(scan_result)
             await session.commit()
-            send_file_alert.delay(file_id)
+            send_file_alert.delay(file_id)  # type: ignore[attr-defined]
             return
 
         metadata = await extract_metadata(file_item, stored_path)
@@ -120,7 +113,7 @@ async def _extract_file_metadata(file_id: str) -> None:
         file_item.processing_status = "processed"
         await session.commit()
 
-    send_file_alert.delay(file_id)
+    send_file_alert.delay(file_id)  # type: ignore[attr-defined]
 
 
 async def _send_file_alert(file_id: str) -> None:
@@ -168,9 +161,3 @@ def extract_file_metadata(file_id: str) -> None:
 def send_file_alert(file_id: str) -> None:
     loop = _get_worker_loop()
     loop.run_until_complete(_send_file_alert(file_id))
-
-
-# Register tasks for event subscriber
-TaskRegistry.register("scan_file_for_threats", scan_file_for_threats)
-TaskRegistry.register("extract_file_metadata", extract_file_metadata)
-TaskRegistry.register("send_file_alert", send_file_alert)

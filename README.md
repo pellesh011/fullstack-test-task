@@ -73,12 +73,11 @@ src/
 backend/src/
 ├── domain/                       # Чистая доменные модели, интерфейсы, события
 │   ├── entities/                 # StoredFile, Alert, ScanResult
-│   ├── events.py                 # FileCreated (domain event)
+│   ├── events.py                 # FileCreated (domain event) — published via Celery
 │   ├── interfaces/
 │   │   ├── repositories.py       # FileRepository, AlertRepository, ScanResultRepository
 │   │   ├── storage.py            # FileStorage
-│   │   ├── scanner.py            # ScanCheck (strategy)
-│   │   └── event_bus.py          # EventBus
+│   │   └── scanner.py            # ScanCheck (strategy)
 │   └── value_objects.py          # FileId, MimeType, FileSize
 ├── application/                  # Use cases, сервисы, DTO
 │   ├── services/
@@ -96,9 +95,8 @@ backend/src/
 │   │   └── repositories/         # SQLFileRepository, SQLAlertRepository, SQLScanResultRepository
 │   ├── storage/
 │   │   └── local_storage.py      # LocalFileStorage (atomic write, safe delete)
-│   ├── events/
-│   │   └── redis_event_bus.py    # Redis pub/sub с reconnection
-│   └── scanner/checks/           # Реализации ScanCheck
+│   ├── scanner/checks/           # Реализации ScanCheck
+│   └── celery/                   # Celery app, tasks, worker loop
 ├── presentation/                 # FastAPI слой
 │   ├── api/
 │   │   ├── routes/
@@ -145,9 +143,9 @@ presentation → application → domain ← infrastructure
 
 | Слой | Файлы | Ответственность |
 |------|-------|-----------------|
-| `domain` | 8 файлов | Entities, Value Objects, Repository interfaces, Events |
+| `domain` | 8 файлов | Entities, Value Objects, Repository interfaces |
 | `application` | 15+ файлов | Services, Use Cases, DTO, Scanner (8 checks + orchestrator) |
-| `infrastructure` | 12+ файлов | SQLAlchemy repos, LocalFileStorage, Redis EventBus |
+| `infrastructure` | 12+ файлов | SQLAlchemy repos, LocalFileStorage, Celery tasks |
 | `presentation` | 8 файлов | FastAPI routes, Pydantic schemas, DI, exception handlers |
 
 ### Исправленные баги
@@ -164,7 +162,7 @@ presentation → application → domain ← infrastructure
 | **Небезопасные tmp директории** | `tempfile.gettempdir()` (world-writable) | `tempfile.mkdtemp(dir=secure_dir, prefix=...)` |
 | **Нет обработки ошибок сканера** | Ошибка сканера крашит задачу Celery | Try/except в каждом чеке, статус `failed`, алерт `critical` |
 | **DB connection при импорте** | Создаётся при импорте модуля, крашится без env | Lazy init через `DatabaseSessionManager.dispose()` |
-| **Redis без reconnection** | Прямой `.delay()` без обработки ошибок | Subscriber с reconnection + configurable delay |
+| **Redis без reconnection** | Прямой `.delay()` без обработки ошибок | Celery task retry + брокер управляет соединением |
 | **CORS хардкод** | `localhost:3000` | `CORS_ORIGINS` env var |
 
 ### Безопасность
@@ -177,7 +175,7 @@ presentation → application → domain ← infrastructure
 
 - `GET /files/{id}/scan-results` — детальные результаты сканирования
 - `original_mime_type` — аудит client MIME vs реальный MIME
-- Domain Event `FileCreated` через Redis pub/sub
+- Domain Event `FileCreated` через Celery task (`scan_file_for_threats.delay()`)
 - Alembic миграции (3 версии: init, scan_results, alerts)
 - `AlertService` с детальными сообщениями из scan results
 
@@ -260,6 +258,12 @@ Backend (merged into same branch via PR):
   - 12+ bug fixes (MIME spoofing, sync I/O, atomic delete, scan_results table)
   - Security hardening (env-driven config, magic MIME detection)
   - ~1500 lines tests
+
+refactor/celery-task-queue:
+  - Removed custom Redis pub/sub event bus (redis_event_bus.py, subscriber.py)
+  - Direct Celery task invocation: FileService → scan_file_for_threats.delay()
+  - Celery handles broker abstraction (Redis/RabbitMQ via CELERY_BROKER_URL)
+  - 175 lines removed, 113 tests pass
 ```
 
 ---

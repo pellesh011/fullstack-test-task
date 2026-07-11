@@ -8,7 +8,6 @@ from redis.exceptions import ConnectionError as RedisConnectionError, RedisError
 from src.core.config import settings
 from src.presentation.routes import router
 from src.infrastructure.database import DatabaseSessionManager
-from src.infrastructure.event_bus.redis_event_bus import RedisEventBus
 
 app = FastAPI(
     title="File Share API",
@@ -25,7 +24,6 @@ app.add_middleware(
 )
 
 _db_manager: DatabaseSessionManager | None = None
-_event_bus: RedisEventBus | None = None
 
 
 def get_db_manager() -> DatabaseSessionManager:
@@ -33,13 +31,6 @@ def get_db_manager() -> DatabaseSessionManager:
     if _db_manager is None:
         _db_manager = DatabaseSessionManager()
     return _db_manager
-
-
-def get_event_bus_instance() -> RedisEventBus:
-    global _event_bus
-    if _event_bus is None:
-        _event_bus = RedisEventBus(settings.resolved_redis_url)
-    return _event_bus
 
 
 @app.exception_handler(OperationalError)
@@ -78,8 +69,11 @@ async def health_check() -> JSONResponse:
         pass
 
     try:
-        bus = get_event_bus_instance()
-        await bus._redis.ping()
+        import redis.asyncio as redis
+
+        r = redis.from_url(settings.resolved_redis_url)
+        await r.ping()
+        await r.close()
         redis_ok = True
     except Exception:
         pass

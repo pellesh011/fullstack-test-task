@@ -6,11 +6,10 @@ from fastapi import HTTPException, UploadFile, status
 import magic
 
 from src.core.config import settings
-from src.domain.events import FileCreated
-from src.domain.interfaces.event_bus import EventBus
 from src.domain.interfaces.file_storage import FileStorage
 from src.domain.interfaces.repositories import FileRepository
 from src.models import StoredFile
+from src.tasks import scan_file_for_threats
 
 
 logger = logging.getLogger(__name__)
@@ -21,11 +20,9 @@ class FileService:
         self,
         file_repo: FileRepository,
         file_storage: FileStorage,
-        event_bus: EventBus,
     ):
         self._file_repo = file_repo
         self._file_storage = file_storage
-        self._event_bus = event_bus
 
     async def list_files(self) -> list[StoredFile]:
         return list(await self._file_repo.list_all())
@@ -79,7 +76,7 @@ class FileService:
         )
         try:
             saved = await self._file_repo.save(file_item)
-            await self._event_bus.publish(FileCreated(file_id=saved.id))
+            scan_file_for_threats.delay(saved.id)  # type: ignore[attr-defined]
         except Exception:
             await self._file_storage.delete(stored_name)
             raise
