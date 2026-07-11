@@ -1,20 +1,21 @@
 "use client";
 
-import { Badge, Button, Spinner, Table } from "react-bootstrap";
-import { API_BASE } from "./api";
-import type { FileItem } from "./types";
-import { formatDate, formatSize, getProcessingVariant } from "./utils";
+import { Badge, Button, Table } from "react-bootstrap";
+import { formatDate, formatSize, getProcessingVariant } from "@/shared/lib";
+import type { FileItem } from "@/entities";
 
-type Props = {
+interface FileTableProps {
   files: FileItem[];
   isLoading: boolean;
-};
+}
 
-export function FileTable({ files, isLoading }: Props) {
+export function FileTable({ files, isLoading }: FileTableProps) {
   if (isLoading) {
     return (
       <div className="d-flex justify-content-center py-5">
-        <Spinner animation="border" />
+        <div className="spinner-border" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
       </div>
     );
   }
@@ -70,7 +71,7 @@ export function FileTable({ files, isLoading }: Props) {
                 <td className="text-nowrap">
                   <Button
                     as="a"
-                    href={`${API_BASE}/files/${file.id}/download`}
+                    href={`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}/files/${file.id}/download`}
                     variant="outline-primary"
                     size="sm"
                   >

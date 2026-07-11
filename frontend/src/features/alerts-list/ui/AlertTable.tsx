@@ -1,19 +1,21 @@
 "use client";
 
-import { Badge, Spinner, Table } from "react-bootstrap";
-import type { AlertItem } from "./types";
-import { formatDate, getLevelVariant } from "./utils";
+import { Badge, Table } from "react-bootstrap";
+import { formatDate, getLevelVariant } from "@/shared/lib";
+import type { AlertItem } from "@/entities";
 
-type Props = {
+interface AlertTableProps {
   alerts: AlertItem[];
   isLoading: boolean;
-};
+}
 
-export function AlertTable({ alerts, isLoading }: Props) {
+export function AlertTable({ alerts, isLoading }: AlertTableProps) {
   if (isLoading) {
     return (
       <div className="d-flex justify-content-center py-5">
-        <Spinner animation="border" />
+        <div className="spinner-border" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
       </div>
     );
   }
