@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 revision: str = "0002_add_cascade_fk"
-down_revision: Union[str, Sequence[str], None] = "7f3a1e2b4c5d"
+down_revision: Union[str, Sequence[str], None] = "4a2f1c1e1e4a"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
