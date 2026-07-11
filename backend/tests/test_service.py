@@ -40,7 +40,6 @@ class TestListFiles:
         svc = FileService(
             file_repo=SQLFileRepository(db_session),
             file_storage=storage,
-            event_bus=AsyncMock(),
         )
         result = await svc.list_files()
         assert result == []
@@ -64,7 +63,6 @@ class TestListFiles:
         svc = FileService(
             file_repo=SQLFileRepository(db_session),
             file_storage=storage,
-            event_bus=AsyncMock(),
         )
         result = await svc.list_files()
         assert len(result) == 1
@@ -77,7 +75,6 @@ class TestListFiles:
         svc = FileService(
             file_repo=SQLFileRepository(db_session),
             file_storage=storage,
-            event_bus=AsyncMock(),
         )
         db_session.add_all(
             [
@@ -142,7 +139,6 @@ class TestGetFile:
         svc = FileService(
             file_repo=SQLFileRepository(db_session),
             file_storage=storage,
-            event_bus=AsyncMock(),
         )
         db_session.add(
             StoredFile(
@@ -167,7 +163,6 @@ class TestGetFile:
         svc = FileService(
             file_repo=SQLFileRepository(db_session),
             file_storage=storage,
-            event_bus=AsyncMock(),
         )
         with pytest.raises(HTTPException) as exc:
             await svc.get_file("nonexistent")
@@ -182,7 +177,6 @@ class TestCreateFile:
         svc = FileService(
             file_repo=SQLFileRepository(db_session),
             file_storage=storage,
-            event_bus=AsyncMock(),
         )
         mock = MagicMock()
         mock.filename = "hello.txt"
@@ -204,7 +198,6 @@ class TestCreateFile:
         svc = FileService(
             file_repo=SQLFileRepository(db_session),
             file_storage=storage,
-            event_bus=AsyncMock(),
         )
         mock = MagicMock()
         mock.filename = "empty.txt"
@@ -223,7 +216,6 @@ class TestCreateFile:
         svc = FileService(
             file_repo=SQLFileRepository(db_session),
             file_storage=storage,
-            event_bus=AsyncMock(),
         )
         mock = MagicMock()
         mock.filename = None
@@ -241,7 +233,6 @@ class TestCreateFile:
         svc = FileService(
             file_repo=SQLFileRepository(db_session),
             file_storage=storage,
-            event_bus=AsyncMock(),
         )
         mock = MagicMock()
         mock.filename = "file.txt"
@@ -261,7 +252,6 @@ class TestUpdateFile:
         svc = FileService(
             file_repo=SQLFileRepository(db_session),
             file_storage=storage,
-            event_bus=AsyncMock(),
         )
         db_session.add(
             StoredFile(
@@ -285,7 +275,6 @@ class TestUpdateFile:
         svc = FileService(
             file_repo=SQLFileRepository(db_session),
             file_storage=storage,
-            event_bus=AsyncMock(),
         )
         with pytest.raises(HTTPException) as exc:
             await svc.update_file("nonexistent", "x")
@@ -300,7 +289,6 @@ class TestDeleteFile:
         svc = FileService(
             file_repo=SQLFileRepository(db_session),
             file_storage=storage,
-            event_bus=AsyncMock(),
         )
         await storage.save("df1.txt", b"data")
         db_session.add(
@@ -330,7 +318,6 @@ class TestDeleteFile:
         svc = FileService(
             file_repo=SQLFileRepository(db_session),
             file_storage=storage,
-            event_bus=AsyncMock(),
         )
         with pytest.raises(HTTPException) as exc:
             await svc.delete_file("nonexistent")
@@ -343,7 +330,6 @@ class TestDeleteFile:
         svc = FileService(
             file_repo=SQLFileRepository(db_session),
             file_storage=storage,
-            event_bus=AsyncMock(),
         )
         await storage.save("df2.txt", b"data")
         db_session.add(
@@ -380,7 +366,6 @@ class TestGetStoragePath:
         svc = FileService(
             file_repo=SQLFileRepository(db_session),
             file_storage=storage,
-            event_bus=AsyncMock(),
         )
         await storage.save("gfp1.txt", b"data")
         db_session.add(
@@ -406,7 +391,6 @@ class TestGetStoragePath:
         svc = FileService(
             file_repo=SQLFileRepository(db_session),
             file_storage=storage,
-            event_bus=AsyncMock(),
         )
         db_session.add(
             StoredFile(
