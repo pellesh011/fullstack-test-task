@@ -9,7 +9,6 @@ class FileMapper(Mapper[StoredFile, StoredFileModel]):
         self,
         model: StoredFileModel,
     ) -> StoredFile:
-
         return StoredFile(
             id=model.id,
             title=model.title,
@@ -30,7 +29,6 @@ class FileMapper(Mapper[StoredFile, StoredFileModel]):
         self,
         entity: StoredFile,
     ) -> StoredFileModel:
-
         return StoredFileModel(
             id=entity.id,
             title=entity.title,

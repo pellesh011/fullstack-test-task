@@ -1,6 +1,5 @@
-from src.domain.enums import AlertLevel
+from src.domain.entities.alert import Alert, AlertLevel
 from src.domain.interfaces.repositories import AlertRepository
-from src.infrastructure.database.models import Alert
 
 
 class AlertService:
@@ -13,7 +12,7 @@ class AlertService:
     async def create_alert(
         self, file_id: str, level: AlertLevel, message: str
     ) -> Alert:
-        alert = Alert(file_id=file_id, level=level.value, message=message)
+        alert = Alert(id=None, file_id=file_id, level=level, message=message)
         return await self._alert_repo.save(alert)
 
     async def create_alert_for_file(

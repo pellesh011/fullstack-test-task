@@ -7,6 +7,7 @@ class AlertLevel(StrEnum):
     INFO = "info"
     WARNING = "warning"
     ERROR = "error"
+    CRITICAL = "critical"
 
 
 @dataclass

@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import (
     BigInteger,
@@ -32,7 +33,7 @@ class StoredFile(Base):
         String(50), nullable=False, default="uploaded"
     )
     scan_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    metadata_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    metadata_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     requires_attention: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False
     )

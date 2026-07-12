@@ -4,8 +4,8 @@ from enum import StrEnum
 
 
 class ScanResultStatus(StrEnum):
-    PASSED = "passed"
-    FAILED = "failed"
+    CLEAN = "clean"
+    SUSPICIOUS = "suspicious"
     ERROR = "error"
 
 
@@ -25,6 +25,6 @@ class ScanResult:
 
     def is_failed(self) -> bool:
         return self.status in {
-            ScanResultStatus.FAILED,
+            ScanResultStatus.SUSPICIOUS,
             ScanResultStatus.ERROR,
         }

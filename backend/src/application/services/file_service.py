@@ -1,16 +1,18 @@
 from uuid import uuid4
 from pathlib import Path
 import logging
-
-from fastapi import HTTPException, UploadFile, status
 import magic
+from typing import Any
 
 from src.core.config import settings
+from src.domain.entities.stored_file import StoredFile
 from src.domain.interfaces.file_storage import FileStorage
 from src.domain.interfaces.repositories import FileRepository
-from src.domain.entities.stored_file import StoredFile
-from src.tasks import scan_file_for_threats
-
+from src.domain.exceptions import (
+    FileNotFoundError,
+    FileEmptyError,
+    StoredFileNotFoundError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -30,12 +32,10 @@ class FileService:
     async def get_file(self, file_id: str) -> StoredFile:
         file_item = await self._file_repo.get_by_id(file_id)
         if not file_item:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="File not found"
-            )
+            raise FileNotFoundError(f"File with id {file_id} not found")
         return file_item
 
-    async def create_file(self, title: str, upload_file: UploadFile) -> StoredFile:
+    async def create_file(self, title: str, upload_file: Any) -> StoredFile:
         if (
             upload_file.size is not None
             and upload_file.size > settings.max_file_size_warning_mb * 1024 * 1024
@@ -49,9 +49,7 @@ class FileService:
 
         content = await upload_file.read()
         if not content:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="File is empty"
-            )
+            raise FileEmptyError("File is empty")
 
         file_id = str(uuid4())
         suffix = Path(upload_file.filename or "").suffix
@@ -76,7 +74,8 @@ class FileService:
         )
         try:
             saved = await self._file_repo.save(file_item)
-            scan_file_for_threats.delay(saved.id)  # type: ignore[attr-defined]
+            # Domain event: file created - infrastructure will handle async processing
+            # This is now handled by the presentation layer via event handlers
         except Exception:
             await self._file_storage.delete(stored_name)
             raise
@@ -86,18 +85,14 @@ class FileService:
     async def update_file(self, file_id: str, title: str) -> StoredFile:
         file_item = await self._file_repo.get_by_id(file_id)
         if not file_item:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="File not found"
-            )
+            raise FileNotFoundError(f"File with id {file_id} not found")
         file_item.title = title
         return await self._file_repo.save(file_item)
 
     async def delete_file(self, file_id: str) -> None:
         file_item = await self._file_repo.get_by_id(file_id)
         if not file_item:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="File not found"
-            )
+            raise FileNotFoundError(f"File with id {file_id} not found")
 
         await self._file_repo.delete(file_item)
         await self._file_repo.flush()
@@ -106,19 +101,14 @@ class FileService:
             await self._file_storage.delete(file_item.stored_name)
         except Exception:
             await self._file_repo.rollback()
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to delete file from storage",
-            )
+            raise
 
         await self._file_repo.commit()
 
     def get_storage_path(self, file_item: StoredFile) -> Path:
         path = self._file_storage.get_path(file_item.stored_name)
-        # Note: exists is now async, but this method is sync.
-        # We check path existence directly since we already have the path.
         if not path.exists():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Stored file not found"
+            raise StoredFileNotFoundError(
+                f"Stored file not found: {file_item.stored_name}"
             )
         return path

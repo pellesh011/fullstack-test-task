@@ -15,7 +15,7 @@ class FileSizeCheck(ScanCheck):
             return ScanResult(
                 file_id=file.id,
                 check_name="file_size",
-                status=ScanResultStatus.FAILED,
+                status=ScanResultStatus.SUSPICIOUS,
                 message=f"file is larger than {settings.max_file_size_mb} MB",
             )
         return None

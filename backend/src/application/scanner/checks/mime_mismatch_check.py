@@ -128,6 +128,6 @@ class MimeMismatchCheck(ScanCheck):
         return ScanResult(
             file_id=file.id,
             check_name="mime_mismatch",
-            status=ScanResultStatus.FAILED,
+            status=ScanResultStatus.SUSPICIOUS,
             message="; ".join(issues),
         )

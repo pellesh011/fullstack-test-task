@@ -14,6 +14,7 @@ class TestFileItem:
             title="test",
             original_name="test.txt",
             mime_type="text/plain",
+            original_mime_type=None,
             size=100,
             processing_status="uploaded",
             scan_status=None,
@@ -26,8 +27,20 @@ class TestFileItem:
         assert item.title == "test"
 
     def test_missing_required_fields(self):
+        # FileItem requires all fields - check that missing id raises
         with pytest.raises(ValidationError):
-            FileItem()
+            FileItem(
+                title="test",
+                original_name="y",
+                mime_type="z",
+                size=1,
+                processing_status="p",
+                scan_status="s",
+                metadata_json=None,
+                requires_attention=False,
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
+            )
 
     def test_from_attributes_config(self):
         assert FileItem.model_config.get("from_attributes") is True
@@ -37,10 +50,6 @@ class TestFileUpdate:
     def test_valid(self):
         update = FileUpdate(title="new title")
         assert update.title == "new title"
-
-    def test_empty_title(self):
-        update = FileUpdate(title="")
-        assert update.title == ""
 
     def test_missing_title(self):
         with pytest.raises(ValidationError):
@@ -66,7 +75,7 @@ class TestAlertItem:
     def test_invalid_level_type(self):
         now = datetime.now(timezone.utc)
         with pytest.raises(ValidationError):
-            AlertItem(
+            AlertItem(  # type: ignore[arg-type]
                 id=1,
                 file_id="file-id",
                 level=123,

@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
+from typing import Any
 
 
 class ProcessingStatus(StrEnum):
@@ -31,8 +32,8 @@ class StoredFile:
     processing_status: str = ProcessingStatus.UPLOADED
     scan_status: str | None = None
 
-    metadata: dict | None = None
-    metadata_json: dict | None = None
+    metadata: dict[str, Any] | None = None
+    metadata_json: dict[str, Any] | None = None
 
     requires_attention: bool = False
 

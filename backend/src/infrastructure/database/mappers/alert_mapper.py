@@ -1,4 +1,4 @@
-from src.domain.entities.alert import Alert
+from src.domain.entities.alert import Alert, AlertLevel
 from src.infrastructure.database.models import Alert as AlertModel
 
 from .base import Mapper
@@ -9,11 +9,10 @@ class AlertMapper(Mapper[Alert, AlertModel]):
         self,
         model: AlertModel,
     ) -> Alert:
-
         return Alert(
             id=model.id,
             file_id=model.file_id,
-            level=model.level,
+            level=AlertLevel(model.level),
             message=model.message,
             created_at=model.created_at,
         )
@@ -22,11 +21,10 @@ class AlertMapper(Mapper[Alert, AlertModel]):
         self,
         entity: Alert,
     ) -> AlertModel:
-
         return AlertModel(
             id=entity.id,
             file_id=entity.file_id,
-            level=entity.level,
+            level=entity.level.value,
             message=entity.message,
             created_at=entity.created_at,
         )
