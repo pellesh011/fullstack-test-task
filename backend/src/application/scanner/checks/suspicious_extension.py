@@ -1,8 +1,9 @@
 from pathlib import Path
 
 from src.core.config import settings
+from src.domain.entities.scan_result import ScanResult, ScanResultStatus
+from src.domain.entities.stored_file import StoredFile
 from src.domain.interfaces.scan_check import ScanCheck
-from src.infrastructure.database.models import ScanResult, StoredFile
 
 
 class SuspiciousExtensionCheck(ScanCheck):
@@ -16,7 +17,7 @@ class SuspiciousExtensionCheck(ScanCheck):
             return ScanResult(
                 file_id=file.id,
                 check_name="suspicious_extension",
-                status="suspicious",
+                status=ScanResultStatus.FAILED,
                 message=f"suspicious extension {ext}",
             )
         return None

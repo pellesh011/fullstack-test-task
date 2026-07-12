@@ -1,6 +1,7 @@
 from src.core.config import settings
+from src.domain.entities.scan_result import ScanResult, ScanResultStatus
+from src.domain.entities.stored_file import StoredFile
 from src.domain.interfaces.scan_check import ScanCheck
-from src.infrastructure.database.models import ScanResult, StoredFile
 
 
 class FileSizeCheck(ScanCheck):
@@ -14,7 +15,7 @@ class FileSizeCheck(ScanCheck):
             return ScanResult(
                 file_id=file.id,
                 check_name="file_size",
-                status="suspicious",
+                status=ScanResultStatus.FAILED,
                 message=f"file is larger than {settings.max_file_size_mb} MB",
             )
         return None

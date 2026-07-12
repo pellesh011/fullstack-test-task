@@ -1,7 +1,9 @@
 import logging
+
+from src.domain.entities.scan_result import ScanResult, ScanResultStatus
+from src.domain.entities.stored_file import StoredFile
 from src.domain.interfaces.repositories import ScanResultRepository
 from src.domain.interfaces.scan_check import ScanCheck
-from src.infrastructure.database.models import ScanResult, StoredFile
 
 
 logger = logging.getLogger(__name__)
@@ -40,12 +42,12 @@ class ThreatScanner:
                             "check_name",
                             check.__class__.__name__.lower().replace("check", ""),
                         ),
-                        status="error",
+                        status=ScanResultStatus.ERROR,
                         message=f"Check failed: {e}",
                     )
                 )
 
-        has_suspicious = any(r.status == "suspicious" for r in results)
+        has_suspicious = any(r.status == ScanResultStatus.FAILED for r in results)
 
         # Upsert instead of delete + insert to avoid N+1
         await self._scan_result_repo.upsert_all(file.id, results)

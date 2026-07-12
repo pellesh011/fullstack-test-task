@@ -8,7 +8,7 @@ import magic
 from src.core.config import settings
 from src.domain.interfaces.file_storage import FileStorage
 from src.domain.interfaces.repositories import FileRepository
-from src.infrastructure.database.models import StoredFile
+from src.domain.entities.stored_file import StoredFile
 from src.tasks import scan_file_for_threats
 
 

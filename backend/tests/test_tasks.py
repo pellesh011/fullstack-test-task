@@ -345,6 +345,7 @@ class TestExtractFileMetadata:
         await tasks_mod._extract_file_metadata("missing1")
 
         file_item = await db_session.get(StoredFile, "missing1")
+        await db_session.refresh(file_item)
         assert file_item.processing_status == "failed"
 
         results = (
