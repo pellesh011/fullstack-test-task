@@ -1,0 +1,108 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Backend: Run Tests",
+      "type": "shell",
+      "command": "python -m pytest tests/ -v",
+      "options": { "cwd": "${workspaceFolder}/backend" },
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "new" }
+    },
+    {
+      "label": "Backend: Run Tests with Coverage",
+      "type": "shell",
+      "command": "python -m pytest tests/ -v --cov=src --cov-report=term-missing",
+      "options": { "cwd": "${workspaceFolder}/backend" },
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "new" }
+    },
+    {
+      "label": "Backend: Lint (ruff)",
+      "type": "shell",
+      "command": "python -m ruff check src/ tests/",
+      "options": { "cwd": "${workspaceFolder}/backend" },
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "new" }
+    },
+    {
+      "label": "Backend: Lint Fix (ruff --fix)",
+      "type": "shell",
+      "command": "python -m ruff check --fix src/ tests/",
+      "options": { "cwd": "${workspaceFolder}/backend" },
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "new" }
+    },
+    {
+      "label": "Backend: Format (ruff format)",
+      "type": "shell",
+      "command": "python -m ruff format src/ tests/",
+      "options": { "cwd": "${workspaceFolder}/backend" },
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "new" }
+    },
+    {
+      "label": "Backend: Run Migrations",
+      "type": "shell",
+      "command": "alembic upgrade head",
+      "options": {
+        "cwd": "${workspaceFolder}/backend",
+        "env": { "PYTHONPATH": "${workspaceFolder}/backend" }
+      },
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "new" }
+    },
+    {
+      "label": "Backend: Create Migration",
+      "type": "shell",
+      "command": "alembic revision --autogenerate -m \"${input:migrationMessage}\"",
+      "options": {
+        "cwd": "${workspaceFolder}/backend",
+        "env": { "PYTHONPATH": "${workspaceFolder}/backend" }
+      },
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "new" },
+      "inputs": [
+        { "id": "migrationMessage", "type": "promptString", "description": "Migration message" }
+      ]
+    },
+    {
+      "label": "Docker: Build Backend",
+      "type": "shell",
+      "command": "docker-compose -f docker-compose.dev.yml build backend",
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "new" }
+    },
+    {
+      "label": "Docker: Up All Services",
+      "type": "shell",
+      "command": "docker-compose -f docker-compose.dev.yml up -d",
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "new" }
+    },
+    {
+      "label": "Docker: Down All Services",
+      "type": "shell",
+      "command": "docker-compose -f docker-compose.dev.yml down",
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "new" }
+    },
+    {
+      "label": "Docker: Logs Backend",
+      "type": "shell",
+      "command": "docker-compose -f docker-compose.dev.yml logs -f backend",
+      "options": { "cwd": "${workspaceFolder}" },
+      "presentation": { "reveal": "always", "panel": "new" }
+    },
+    {
+      "label": "Docker: Logs Workers",
+      "type": "shell",
+      "command": "docker-compose -f docker-compose.dev.yml logs -f backend-worker backend-scanner",
+      "options": { "cwd": "${workspaceFolder}" },
+      "presentation": { "reveal": "always", "panel": "new" }
+    }
+  ]
+}

@@ -1,0 +1,82 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Backend: FastAPI (Uvicorn)",
+      "type": "python",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "src.app:app",
+        "--host", "0.0.0.0",
+        "--port", "8000",
+        "--reload"
+      ],
+      "cwd": "${workspaceFolder}/backend",
+      "envFile": "${workspaceFolder}/backend/.env.dev",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Backend: Celery Worker (default queue)",
+      "type": "python",
+      "request": "launch",
+      "module": "celery",
+      "args": [
+        "-A", "src.tasks.celery_app",
+        "worker", "-Q", "default", "-l", "info", "--concurrency=2"
+      ],
+      "cwd": "${workspaceFolder}/backend",
+      "envFile": "${workspaceFolder}/backend/.env.dev",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Backend: Celery Worker (scanner queue)",
+      "type": "python",
+      "request": "launch",
+      "module": "celery",
+      "args": [
+        "-A", "src.tasks.celery_app",
+        "worker", "-Q", "scanner", "-l", "info", "--concurrency=2"
+      ],
+      "cwd": "${workspaceFolder}/backend",
+      "envFile": "${workspaceFolder}/backend/.env.dev",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Backend: Celery Beat (scheduler)",
+      "type": "python",
+      "request": "launch",
+      "module": "celery",
+      "args": [
+        "-A", "src.tasks.celery_app",
+        "beat", "-l", "info"
+      ],
+      "cwd": "${workspaceFolder}/backend",
+      "envFile": "${workspaceFolder}/backend/.env.dev",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Backend: All Workers (Compound)",
+      "type": "compound",
+      "configurations": [
+        "Backend: Celery Worker (default queue)",
+        "Backend: Celery Worker (scanner queue)"
+      ],
+      "stopAll": true
+    },
+    {
+      "name": "Backend: Full Stack (Compound)",
+      "type": "compound",
+      "configurations": [
+        "Backend: FastAPI (Uvicorn)",
+        "Backend: Celery Worker (default queue)",
+        "Backend: Celery Worker (scanner queue)"
+      ],
+      "stopAll": true
+    }
+  ]
+}
