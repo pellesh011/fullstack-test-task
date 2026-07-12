@@ -12,8 +12,11 @@ from src.infrastructure.repositories.file_repository import SQLFileRepository
 from src.infrastructure.repositories.scan_result_repository import (
     SQLScanResultRepository,
 )
+from src.infrastructure.database.mappers.file_mapper import FileMapper
+from src.infrastructure.database.mappers.alert_mapper import AlertMapper
+from src.infrastructure.database.mappers.scan_result_mapper import ScanResultMapper
 from src.infrastructure.storage.local_file_storage import LocalFileStorage
-from src.models import ScanResult, StoredFile
+from src.infrastructure.database.models import ScanResult, StoredFile
 
 pytestmark = pytest.mark.asyncio
 
@@ -38,7 +41,7 @@ class TestListFiles:
         storage.get_path = AsyncMock(return_value="/tmp/f1.txt")
 
         svc = FileService(
-            file_repo=SQLFileRepository(db_session),
+            file_repo=SQLFileRepository(db_session, FileMapper()),
             file_storage=storage,
         )
         result = await svc.list_files()
@@ -61,7 +64,7 @@ class TestListFiles:
         storage.get_path = AsyncMock(return_value="/tmp/f1.txt")
 
         svc = FileService(
-            file_repo=SQLFileRepository(db_session),
+            file_repo=SQLFileRepository(db_session, FileMapper()),
             file_storage=storage,
         )
         result = await svc.list_files()
@@ -73,7 +76,7 @@ class TestListFiles:
         storage.get_path = AsyncMock(return_value="/tmp/f1.txt")
 
         svc = FileService(
-            file_repo=SQLFileRepository(db_session),
+            file_repo=SQLFileRepository(db_session, FileMapper()),
             file_storage=storage,
         )
         db_session.add_all(
@@ -105,7 +108,7 @@ class TestListFiles:
 
 class TestListAlerts:
     async def test_empty(self, db_session):
-        svc = AlertService(alert_repo=SQLAlertRepository(db_session))
+        svc = AlertService(alert_repo=SQLAlertRepository(db_session, AlertMapper()))
         result = await svc.list_alerts()
         assert result == []
 
@@ -122,7 +125,7 @@ class TestListAlerts:
         )
         await db_session.commit()
 
-        alert_repo = SQLAlertRepository(db_session)
+        alert_repo = SQLAlertRepository(db_session, AlertMapper())
         svc = AlertService(alert_repo=alert_repo)
         await svc.create_alert("af1", AlertLevel.INFO, "test alert")
 
@@ -137,7 +140,7 @@ class TestGetFile:
         storage.get_path = AsyncMock(return_value="/tmp/gf1.txt")
 
         svc = FileService(
-            file_repo=SQLFileRepository(db_session),
+            file_repo=SQLFileRepository(db_session, FileMapper()),
             file_storage=storage,
         )
         db_session.add(
@@ -161,7 +164,7 @@ class TestGetFile:
         storage.get_path = AsyncMock(return_value="/tmp/gf1.txt")
 
         svc = FileService(
-            file_repo=SQLFileRepository(db_session),
+            file_repo=SQLFileRepository(db_session, FileMapper()),
             file_storage=storage,
         )
         with pytest.raises(HTTPException) as exc:
@@ -175,7 +178,7 @@ class TestCreateFile:
 
         storage = LocalFileStorage(TEST_STORAGE_DIR)
         svc = FileService(
-            file_repo=SQLFileRepository(db_session),
+            file_repo=SQLFileRepository(db_session, FileMapper()),
             file_storage=storage,
         )
         mock = MagicMock()
@@ -196,7 +199,7 @@ class TestCreateFile:
         storage = make_async_storage()
 
         svc = FileService(
-            file_repo=SQLFileRepository(db_session),
+            file_repo=SQLFileRepository(db_session, FileMapper()),
             file_storage=storage,
         )
         mock = MagicMock()
@@ -214,7 +217,7 @@ class TestCreateFile:
 
         storage = LocalFileStorage(TEST_STORAGE_DIR)
         svc = FileService(
-            file_repo=SQLFileRepository(db_session),
+            file_repo=SQLFileRepository(db_session, FileMapper()),
             file_storage=storage,
         )
         mock = MagicMock()
@@ -231,7 +234,7 @@ class TestCreateFile:
 
         storage = LocalFileStorage(TEST_STORAGE_DIR)
         svc = FileService(
-            file_repo=SQLFileRepository(db_session),
+            file_repo=SQLFileRepository(db_session, FileMapper()),
             file_storage=storage,
         )
         mock = MagicMock()
@@ -250,7 +253,7 @@ class TestUpdateFile:
         storage.get_path = AsyncMock(return_value="/tmp/uf1.txt")
 
         svc = FileService(
-            file_repo=SQLFileRepository(db_session),
+            file_repo=SQLFileRepository(db_session, FileMapper()),
             file_storage=storage,
         )
         db_session.add(
@@ -273,7 +276,7 @@ class TestUpdateFile:
         storage.get_path = AsyncMock(return_value="/tmp/uf1.txt")
 
         svc = FileService(
-            file_repo=SQLFileRepository(db_session),
+            file_repo=SQLFileRepository(db_session, FileMapper()),
             file_storage=storage,
         )
         with pytest.raises(HTTPException) as exc:
@@ -287,7 +290,7 @@ class TestDeleteFile:
 
         storage = LocalFileStorage(TEST_STORAGE_DIR)
         svc = FileService(
-            file_repo=SQLFileRepository(db_session),
+            file_repo=SQLFileRepository(db_session, FileMapper()),
             file_storage=storage,
         )
         await storage.save("df1.txt", b"data")
@@ -316,7 +319,7 @@ class TestDeleteFile:
         storage.get_path = AsyncMock(return_value="/tmp/df1.txt")
 
         svc = FileService(
-            file_repo=SQLFileRepository(db_session),
+            file_repo=SQLFileRepository(db_session, FileMapper()),
             file_storage=storage,
         )
         with pytest.raises(HTTPException) as exc:
@@ -328,7 +331,7 @@ class TestDeleteFile:
 
         storage = LocalFileStorage(TEST_STORAGE_DIR)
         svc = FileService(
-            file_repo=SQLFileRepository(db_session),
+            file_repo=SQLFileRepository(db_session, FileMapper()),
             file_storage=storage,
         )
         await storage.save("df2.txt", b"data")
@@ -364,7 +367,7 @@ class TestGetStoragePath:
 
         storage = LocalFileStorage(TEST_STORAGE_DIR)
         svc = FileService(
-            file_repo=SQLFileRepository(db_session),
+            file_repo=SQLFileRepository(db_session, FileMapper()),
             file_storage=storage,
         )
         await storage.save("gfp1.txt", b"data")
@@ -389,7 +392,7 @@ class TestGetStoragePath:
 
         storage = LocalFileStorage(TEST_STORAGE_DIR)
         svc = FileService(
-            file_repo=SQLFileRepository(db_session),
+            file_repo=SQLFileRepository(db_session, FileMapper()),
             file_storage=storage,
         )
         db_session.add(
@@ -424,7 +427,7 @@ class TestCreateAlert:
         )
         await db_session.commit()
 
-        svc = AlertService(alert_repo=SQLAlertRepository(db_session))
+        svc = AlertService(alert_repo=SQLAlertRepository(db_session, AlertMapper()))
         alert = await svc.create_alert("ca1", AlertLevel.WARNING, "something")
         assert alert.file_id == "ca1"
         assert alert.level == "warning"
@@ -446,7 +449,7 @@ class TestListScanResults:
         )
         await db_session.commit()
 
-        repo = SQLScanResultRepository(db_session)
+        repo = SQLScanResultRepository(db_session, ScanResultMapper())
         result = await repo.list_for_file("sr_empty")
         assert result == []
 
@@ -468,7 +471,7 @@ class TestListScanResults:
         )
         await db_session.commit()
 
-        repo = SQLScanResultRepository(db_session)
+        repo = SQLScanResultRepository(db_session, ScanResultMapper())
         result = await repo.list_for_file("sr1")
         assert len(result) == 1
         assert result[0].check_name == "basic_scan"
@@ -477,7 +480,7 @@ class TestListScanResults:
 
 class TestCreateAlertForFile:
     async def test_info_alert(self, db_session):
-        svc = AlertService(alert_repo=SQLAlertRepository(db_session))
+        svc = AlertService(alert_repo=SQLAlertRepository(db_session, AlertMapper()))
         alert = await svc.create_alert_for_file(
             processing_status="processed",
             requires_attention=False,
@@ -488,7 +491,7 @@ class TestCreateAlertForFile:
         assert alert.message == "File processed successfully"
 
     async def test_warning_alert(self, db_session):
-        svc = AlertService(alert_repo=SQLAlertRepository(db_session))
+        svc = AlertService(alert_repo=SQLAlertRepository(db_session, AlertMapper()))
         alert = await svc.create_alert_for_file(
             processing_status="processed",
             requires_attention=True,
@@ -499,7 +502,7 @@ class TestCreateAlertForFile:
         assert "requires attention" in alert.message
 
     async def test_warning_alert_with_scan_messages(self, db_session):
-        svc = AlertService(alert_repo=SQLAlertRepository(db_session))
+        svc = AlertService(alert_repo=SQLAlertRepository(db_session, AlertMapper()))
         alert = await svc.create_alert_for_file(
             processing_status="processed",
             requires_attention=True,
@@ -511,7 +514,7 @@ class TestCreateAlertForFile:
         assert alert.message == "File requires attention: suspicious extension .exe; file is larger than 10 MB"
 
     async def test_critical_alert(self, db_session):
-        svc = AlertService(alert_repo=SQLAlertRepository(db_session))
+        svc = AlertService(alert_repo=SQLAlertRepository(db_session, AlertMapper()))
         alert = await svc.create_alert_for_file(
             processing_status="failed",
             requires_attention=False,

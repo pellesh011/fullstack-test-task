@@ -1,6 +1,5 @@
 import tempfile
 from pathlib import Path
-from unittest.mock import AsyncMock
 
 import pytest
 import pytest_asyncio
@@ -9,7 +8,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from src.app import app
-from src.models import Base
+from src.infrastructure.database.models import Base
 
 TEST_STORAGE_DIR = Path(tempfile.mkdtemp())
 

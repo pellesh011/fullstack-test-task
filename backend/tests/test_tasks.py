@@ -1,9 +1,9 @@
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 import src.tasks as tasks_mod
 from sqlalchemy import select
-from src.models import Alert, ScanResult, StoredFile
+from src.infrastructure.database.models import Alert, ScanResult, StoredFile
 
 
 @pytest.fixture(autouse=True)
@@ -345,6 +345,7 @@ class TestExtractFileMetadata:
         await tasks_mod._extract_file_metadata("missing1")
 
         file_item = await db_session.get(StoredFile, "missing1")
+        await db_session.refresh(file_item)
         assert file_item.processing_status == "failed"
 
         results = (

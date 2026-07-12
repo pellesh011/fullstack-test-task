@@ -17,6 +17,9 @@ from src.domain.interfaces.repositories import (
     FileRepository,
     ScanResultRepository,
 )
+from src.infrastructure.database.mappers.file_mapper import FileMapper
+from src.infrastructure.database.mappers.alert_mapper import AlertMapper
+from src.infrastructure.database.mappers.scan_result_mapper import ScanResultMapper
 from src.infrastructure.database import DatabaseSessionManager
 from src.infrastructure.repositories.alert_repository import SQLAlertRepository
 from src.infrastructure.repositories.file_repository import SQLFileRepository
@@ -36,17 +39,17 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 def get_file_repo(session: AsyncSession = Depends(get_session)) -> FileRepository:
-    return SQLFileRepository(session)
+    return SQLFileRepository(session, FileMapper())
 
 
 def get_alert_repo(session: AsyncSession = Depends(get_session)) -> AlertRepository:
-    return SQLAlertRepository(session)
+    return SQLAlertRepository(session, AlertMapper())
 
 
 def get_scan_result_repo(
     session: AsyncSession = Depends(get_session),
 ) -> ScanResultRepository:
-    return SQLScanResultRepository(session)
+    return SQLScanResultRepository(session, ScanResultMapper())
 
 
 def get_file_storage() -> FileStorage:

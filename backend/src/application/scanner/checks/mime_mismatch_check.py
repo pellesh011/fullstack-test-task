@@ -1,7 +1,8 @@
 from pathlib import Path
 
+from src.domain.entities.scan_result import ScanResult, ScanResultStatus
+from src.domain.entities.stored_file import StoredFile
 from src.domain.interfaces.scan_check import ScanCheck
-from src.models import ScanResult, StoredFile
 
 KNOWN_MIME_TYPES: dict[str, set[str]] = {
     ".pdf": {"application/pdf"},
@@ -127,6 +128,6 @@ class MimeMismatchCheck(ScanCheck):
         return ScanResult(
             file_id=file.id,
             check_name="mime_mismatch",
-            status="suspicious",
+            status=ScanResultStatus.FAILED,
             message="; ".join(issues),
         )
