@@ -4,10 +4,7 @@ from src.infrastructure.database.models import Alert as AlertModel
 from .base import Mapper
 
 
-class AlertMapper(
-    Mapper[Alert, AlertModel]
-):
-
+class AlertMapper(Mapper[Alert, AlertModel]):
     def to_entity(
         self,
         model: AlertModel,
@@ -18,9 +15,8 @@ class AlertMapper(
             file_id=model.file_id,
             level=model.level,
             message=model.message,
-            created_at=model.created_at
+            created_at=model.created_at,
         )
-
 
     def to_model(
         self,
@@ -32,5 +28,5 @@ class AlertMapper(
             file_id=entity.file_id,
             level=entity.level,
             message=entity.message,
-            created_at=entity.created_at
+            created_at=entity.created_at,
         )

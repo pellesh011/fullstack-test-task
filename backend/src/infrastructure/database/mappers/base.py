@@ -7,7 +7,6 @@ ModelT = TypeVar("ModelT")
 
 
 class Mapper(ABC, Generic[EntityT, ModelT]):
-
     @abstractmethod
     def to_entity(
         self,

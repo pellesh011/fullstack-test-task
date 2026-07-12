@@ -11,7 +11,6 @@ class ScanResultStatus(StrEnum):
 
 @dataclass
 class ScanResult:
-
     file_id: str
 
     check_name: str
@@ -23,7 +22,6 @@ class ScanResult:
     created_at: datetime | None = None
 
     id: int | None = None
-
 
     def is_failed(self) -> bool:
         return self.status in {

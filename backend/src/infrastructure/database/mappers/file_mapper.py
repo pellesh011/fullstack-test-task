@@ -4,10 +4,7 @@ from src.infrastructure.database.models import StoredFile as StoredFileModel
 from .base import Mapper
 
 
-class FileMapper(
-    Mapper[StoredFile, StoredFileModel]
-):
-
+class FileMapper(Mapper[StoredFile, StoredFileModel]):
     def to_entity(
         self,
         model: StoredFileModel,
@@ -28,7 +25,6 @@ class FileMapper(
             created_at=model.created_at,
             updated_at=model.updated_at,
         )
-
 
     def to_model(
         self,
