@@ -90,6 +90,7 @@ backend/src/
 ├── infrastructure/               # Реализации интерфейсов
 │   ├── database/
 │   │   ├── models/               # SQLAlchemy ORM модели (table definitions)
+│   │   ├── mappers/              # Domain↔ORM мапперы (FileMapper, AlertMapper, ScanResultMapper)
 │   │   ├── session.py            # DatabaseSessionManager (lazy init, pool)
 │   │   └── repositories/         # SQLFileRepository, SQLAlertRepository, SQLScanResultRepository
 │   ├── storage/
