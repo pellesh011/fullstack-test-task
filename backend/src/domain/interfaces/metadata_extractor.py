@@ -1,12 +1,15 @@
 from abc import ABC, abstractmethod
-from pathlib import Path
+from typing import Any
 
-from src.infrastructure.database.models import StoredFile
+from src.domain.entities.stored_file import StoredFile
+from src.domain.interfaces.file_storage import FileStorage
 
 
 class MetadataExtractor(ABC):
     @abstractmethod
-    async def extract(self, file: StoredFile, stored_path: Path) -> dict: ...
+    async def extract(
+        self, file: StoredFile, storage: FileStorage
+    ) -> dict[str, Any]: ...
 
     @staticmethod
     @abstractmethod

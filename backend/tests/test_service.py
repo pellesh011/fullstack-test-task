@@ -1,12 +1,16 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from fastapi import HTTPException
 from sqlalchemy import select
 
 from src.application.services.alert_service import AlertService
 from src.application.services.file_service import FileService
 from src.domain.enums import AlertLevel
+from src.domain.exceptions import (
+    FileNotFoundError,
+    FileEmptyError,
+    StoredFileNotFoundError,
+)
 from src.infrastructure.repositories.alert_repository import SQLAlertRepository
 from src.infrastructure.repositories.file_repository import SQLFileRepository
 from src.infrastructure.repositories.scan_result_repository import (
@@ -167,9 +171,8 @@ class TestGetFile:
             file_repo=SQLFileRepository(db_session, FileMapper()),
             file_storage=storage,
         )
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(FileNotFoundError):
             await svc.get_file("nonexistent")
-        assert exc.value.status_code == 404
 
 
 class TestCreateFile:
@@ -208,9 +211,8 @@ class TestCreateFile:
         mock.size = 0
         mock.read = AsyncMock(return_value=b"")
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(FileEmptyError):
             await svc.create_file("empty", mock)
-        assert exc.value.status_code == 400
 
     async def test_no_filename(self, db_session):
         from tests.conftest import TEST_STORAGE_DIR
@@ -279,9 +281,8 @@ class TestUpdateFile:
             file_repo=SQLFileRepository(db_session, FileMapper()),
             file_storage=storage,
         )
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(FileNotFoundError):
             await svc.update_file("nonexistent", "x")
-        assert exc.value.status_code == 404
 
 
 class TestDeleteFile:
@@ -322,9 +323,8 @@ class TestDeleteFile:
             file_repo=SQLFileRepository(db_session, FileMapper()),
             file_storage=storage,
         )
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(FileNotFoundError):
             await svc.delete_file("nonexistent")
-        assert exc.value.status_code == 404
 
     async def test_rollback_on_storage_failure(self, db_session):
         from tests.conftest import TEST_STORAGE_DIR
@@ -347,10 +347,11 @@ class TestDeleteFile:
         )
         await db_session.commit()
 
-        with patch.object(storage, "delete", AsyncMock(side_effect=OSError("Storage unavailable"))):
-            with pytest.raises(HTTPException) as exc:
+        with patch.object(
+            storage, "delete", AsyncMock(side_effect=OSError("Storage unavailable"))
+        ):
+            with pytest.raises(OSError):
                 await svc.delete_file("df2")
-            assert exc.value.status_code == 500
 
         result = await db_session.execute(
             select(StoredFile).where(StoredFile.id == "df2")
@@ -408,9 +409,8 @@ class TestGetStoragePath:
         await db_session.commit()
 
         file_item = await svc.get_file("gfp2")
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(StoredFileNotFoundError):
             svc.get_storage_path(file_item)
-        assert exc.value.status_code == 404
 
 
 class TestCreateAlert:
@@ -508,10 +508,16 @@ class TestCreateAlertForFile:
             requires_attention=True,
             scan_status="suspicious",
             file_id="f1",
-            scan_result_messages=["suspicious extension .exe", "file is larger than 10 MB"],
+            scan_result_messages=[
+                "suspicious extension .exe",
+                "file is larger than 10 MB",
+            ],
         )
         assert alert.level == "warning"
-        assert alert.message == "File requires attention: suspicious extension .exe; file is larger than 10 MB"
+        assert (
+            alert.message
+            == "File requires attention: suspicious extension .exe; file is larger than 10 MB"
+        )
 
     async def test_critical_alert(self, db_session):
         svc = AlertService(alert_repo=SQLAlertRepository(db_session, AlertMapper()))

@@ -103,7 +103,7 @@ class TestGetFile:
     async def test_not_found(self, client: AsyncClient):
         response = await client.get("/files/nonexistent-id")
         assert response.status_code == 404
-        assert "File not found" in response.json()["detail"]
+        assert "not found" in response.json()["detail"].lower()
 
 
 class TestUpdateFile:
@@ -158,6 +158,7 @@ class TestListScanResults:
     async def test_not_found_file(self, client: AsyncClient):
         response = await client.get("/files/nonexistent/scan-results")
         assert response.status_code == 404
+        assert "not found" in response.json()["detail"].lower()
 
 
 class TestCORS:

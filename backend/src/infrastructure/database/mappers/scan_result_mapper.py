@@ -1,4 +1,4 @@
-from src.domain.entities.scan_result import ScanResult
+from src.domain.entities.scan_result import ScanResult, ScanResultStatus
 from src.infrastructure.database.models import ScanResult as ScanResultModel
 
 from .base import Mapper
@@ -9,12 +9,11 @@ class ScanResultMapper(Mapper[ScanResult, ScanResultModel]):
         self,
         model: ScanResultModel,
     ) -> ScanResult:
-
         return ScanResult(
             id=model.id,
             file_id=model.file_id,
             check_name=model.check_name,
-            status=model.status,
+            status=ScanResultStatus(model.status),
             message=model.message,
             created_at=model.created_at,
         )
@@ -23,12 +22,11 @@ class ScanResultMapper(Mapper[ScanResult, ScanResultModel]):
         self,
         entity: ScanResult,
     ) -> ScanResultModel:
-
         return ScanResultModel(
             id=entity.id,
             file_id=entity.file_id,
             check_name=entity.check_name,
-            status=entity.status,
+            status=entity.status.value,
             message=entity.message,
             created_at=entity.created_at,
         )

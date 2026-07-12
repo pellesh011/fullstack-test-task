@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from typing import Any
 from celery import Celery
 from celery.signals import worker_shutdown
 
@@ -49,7 +50,7 @@ def _get_worker_loop() -> asyncio.AbstractEventLoop:
 
 
 @worker_shutdown.connect
-def _shutdown_worker_loop(**kwargs):
+def _shutdown_worker_loop(**kwargs: Any) -> None:  # pyright: ignore[reportUnusedFunction]
     global _worker_loop
     if _worker_loop and not _worker_loop.is_closed():
         _worker_loop.close()
@@ -97,7 +98,6 @@ async def _extract_file_metadata(file_id: str) -> None:
             logger.warning("File %s not found for metadata extraction", file_id)
             return
 
-        stored_path = _storage.get_path(file_item.stored_name)
         if not await _storage.exists(file_item.stored_name):
             file_item.processing_status = "failed"
             file_item.scan_status = file_item.scan_status or "failed"
@@ -113,7 +113,7 @@ async def _extract_file_metadata(file_id: str) -> None:
             send_file_alert.delay(file_id)  # type: ignore[attr-defined]
             return
 
-        metadata = await extract_metadata(file_item, stored_path)
+        metadata = await extract_metadata(file_item, _storage)
 
         file_item.metadata = metadata
         file_item.processing_status = "processed"

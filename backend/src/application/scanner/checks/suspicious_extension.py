@@ -17,7 +17,7 @@ class SuspiciousExtensionCheck(ScanCheck):
             return ScanResult(
                 file_id=file.id,
                 check_name="suspicious_extension",
-                status=ScanResultStatus.FAILED,
+                status=ScanResultStatus.SUSPICIOUS,
                 message=f"suspicious extension {ext}",
             )
         return None

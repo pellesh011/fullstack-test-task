@@ -20,6 +20,8 @@ jobs:
       - run: uv sync --locked --extra dev
       - run: uv run ruff check src/
       - run: uv run ruff format --check src/
+      - run: uv run import-linter lint
+      - run: uv run pyright
 
   test-backend:
     runs-on: ubuntu-latest

@@ -9,8 +9,12 @@ from src.infrastructure.database.models import Alert, ScanResult, StoredFile
 @pytest.fixture(autouse=True)
 def no_delay():
     with (
-        patch.object(tasks_mod.extract_file_metadata, "delay", new_callable=MagicMock) as ext,
-        patch.object(tasks_mod.send_file_alert, "delay", new_callable=MagicMock) as alert,
+        patch.object(
+            tasks_mod.extract_file_metadata, "delay", new_callable=MagicMock
+        ) as ext,
+        patch.object(
+            tasks_mod.send_file_alert, "delay", new_callable=MagicMock
+        ) as alert,
     ):
         yield ext, alert
 

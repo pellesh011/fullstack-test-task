@@ -47,7 +47,7 @@ class ThreatScanner:
                     )
                 )
 
-        has_suspicious = any(r.status == ScanResultStatus.FAILED for r in results)
+        has_suspicious = any(r.status == ScanResultStatus.SUSPICIOUS for r in results)
 
         # Upsert instead of delete + insert to avoid N+1
         await self._scan_result_repo.upsert_all(file.id, results)
