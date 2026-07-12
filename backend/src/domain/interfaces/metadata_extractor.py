@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
 
-from src.models import StoredFile
+from src.infrastructure.database.models import StoredFile
 
 
 class MetadataExtractor(ABC):

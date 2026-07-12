@@ -13,14 +13,17 @@ from src.application.scanner.threat_scanner import ThreatScanner
 from src.application.services.alert_service import AlertService
 from src.core.config import settings
 from src.domain.interfaces.file_storage import FileStorage
-from src.infrastructure.database import DatabaseSessionManager
+from src.infrastructure import DatabaseSessionManager
+from src.domain.entities.scan_result import ScanResult, ScanResultStatus
+from src.infrastructure.database.mappers.file_mapper import FileMapper
+from src.infrastructure.database.mappers.alert_mapper import AlertMapper
+from src.infrastructure.database.mappers.scan_result_mapper import ScanResultMapper
 from src.infrastructure.repositories.alert_repository import SQLAlertRepository
 from src.infrastructure.repositories.file_repository import SQLFileRepository
 from src.infrastructure.repositories.scan_result_repository import (
     SQLScanResultRepository,
 )
 from src.infrastructure.storage.local_file_storage import LocalFileStorage
-from src.models import ScanResult
 
 logger = logging.getLogger(__name__)
 
@@ -55,8 +58,8 @@ def _shutdown_worker_loop(**kwargs):
 
 async def _scan_file_for_threats(file_id: str) -> None:
     async with _db.session() as session:
-        file_repo = SQLFileRepository(session)
-        scan_result_repo = SQLScanResultRepository(session)
+        file_repo = SQLFileRepository(session, FileMapper())
+        scan_result_repo = SQLScanResultRepository(session, ScanResultMapper())
 
         file_item = await file_repo.get_by_id(file_id)
         if not file_item:
@@ -78,6 +81,7 @@ async def _scan_file_for_threats(file_id: str) -> None:
 
         file_item.scan_status = scan_status
         file_item.requires_attention = has_suspicious
+        await file_repo.save(file_item)
         await session.commit()
 
     extract_file_metadata.delay(file_id)  # type: ignore[attr-defined]
@@ -85,7 +89,8 @@ async def _scan_file_for_threats(file_id: str) -> None:
 
 async def _extract_file_metadata(file_id: str) -> None:
     async with _db.session() as session:
-        file_repo = SQLFileRepository(session)
+        file_repo = SQLFileRepository(session, FileMapper())
+        scan_result_repo = SQLScanResultRepository(session, ScanResultMapper())
 
         file_item = await file_repo.get_by_id(file_id)
         if not file_item:
@@ -99,18 +104,20 @@ async def _extract_file_metadata(file_id: str) -> None:
             scan_result = ScanResult(
                 file_id=file_id,
                 check_name="metadata_extraction",
-                status="error",
+                status=ScanResultStatus.ERROR,
                 message="stored file not found during metadata extraction",
             )
-            session.add(scan_result)
+            await scan_result_repo.save_all([scan_result])
+            await file_repo.save(file_item)
             await session.commit()
             send_file_alert.delay(file_id)  # type: ignore[attr-defined]
             return
 
         metadata = await extract_metadata(file_item, stored_path)
 
-        file_item.metadata_json = metadata
+        file_item.metadata = metadata
         file_item.processing_status = "processed"
+        await file_repo.save(file_item)
         await session.commit()
 
     send_file_alert.delay(file_id)  # type: ignore[attr-defined]
@@ -118,9 +125,9 @@ async def _extract_file_metadata(file_id: str) -> None:
 
 async def _send_file_alert(file_id: str) -> None:
     async with _db.session() as session:
-        file_repo = SQLFileRepository(session)
-        alert_repo = SQLAlertRepository(session)
-        scan_result_repo = SQLScanResultRepository(session)
+        file_repo = SQLFileRepository(session, FileMapper())
+        alert_repo = SQLAlertRepository(session, AlertMapper())
+        scan_result_repo = SQLScanResultRepository(session, ScanResultMapper())
 
         file_item = await file_repo.get_by_id(file_id)
         if not file_item:

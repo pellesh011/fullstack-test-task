@@ -1,7 +1,9 @@
 from collections.abc import Sequence
 from abc import ABC, abstractmethod
 
-from src.models import Alert, ScanResult, StoredFile
+from src.domain.entities.stored_file import StoredFile
+from src.domain.entities.alert import Alert
+from src.domain.entities.scan_result import ScanResult
 
 
 class FileRepository(ABC):

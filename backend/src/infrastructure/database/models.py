@@ -9,7 +9,6 @@ from sqlalchemy import (
     JSON,
     String,
     Text,
-    UniqueConstraint,
     func,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -68,9 +67,6 @@ class Alert(Base):
 
 class ScanResult(Base):
     __tablename__ = "scan_results"
-    __table_args__ = (
-        UniqueConstraint("file_id", "check_name", name="uq_scan_result_file_check"),
-    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     file_id: Mapped[str] = mapped_column(

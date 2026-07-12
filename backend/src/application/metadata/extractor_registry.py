@@ -6,7 +6,7 @@ from src.application.metadata.default_extractor import DefaultMetadataExtractor
 from src.application.metadata.pdf_extractor import PdfMetadataExtractor
 from src.application.metadata.text_extractor import TextMetadataExtractor
 from src.domain.interfaces.metadata_extractor import MetadataExtractor
-from src.models import StoredFile
+from src.infrastructure.database.models import StoredFile
 
 
 def get_extractors() -> list[type[MetadataExtractor]]:

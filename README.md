@@ -72,7 +72,7 @@ src/
 ```
 backend/src/
 ├── domain/                       # Чистая доменные модели, интерфейсы
-│   ├── entities/                 # StoredFile, Alert, ScanResult
+│   ├── entities/                 # StoredFile, Alert, ScanResult (domain entities)
 │   ├── interfaces/
 │   │   ├── repositories.py       # FileRepository, AlertRepository, ScanResultRepository
 │   │   ├── storage.py            # FileStorage
@@ -89,6 +89,8 @@ backend/src/
 │   └── dto.py                    # FileCreate, FileUpdate, AlertCreate, ScanResultCreate
 ├── infrastructure/               # Реализации интерфейсов
 │   ├── database/
+│   │   ├── models/               # SQLAlchemy ORM модели (table definitions)
+│   │   ├── mappers/              # Domain↔ORM мапперы (FileMapper, AlertMapper, ScanResultMapper)
 │   │   ├── session.py            # DatabaseSessionManager (lazy init, pool)
 │   │   └── repositories/         # SQLFileRepository, SQLAlertRepository, SQLScanResultRepository
 │   ├── storage/
@@ -106,7 +108,6 @@ backend/src/
 │   └── main.py                   # FastAPI app, lifespan, CORS, exception handlers
 ├── core/
 │   └── config.py                 # Pydantic BaseSettings (env-driven)
-└── models/                       # SQLAlchemy ORM модели (table definitions)
 ```
 
 **Поток зависимостей:**
@@ -173,7 +174,7 @@ presentation → application → domain ← infrastructure
 
 - `GET /files/{id}/scan-results` — детальные результаты сканирования
 - `original_mime_type` — аудит client MIME vs реальный MIME
-- Alembic миграции (3 версии: init, scan_results, alerts)
+- Alembic миграции (4 версии: init, scan_results, alerts, drop unique constraint)
 - `AlertService` с детальными сообщениями из scan results
 
 ### Тесты
@@ -242,32 +243,3 @@ alembic revision --autogenerate -m "message"
 ```
 
 ---
-
-## Git History (key commits)
-
-```
-refactor/frontend-fds-layers:
-  681f46f - FSD restructuring: app/pages/widgets/features/entities/shared
-  (ESLint no-restricted-imports, types in entities/*/model/types.ts)
-
-Backend (merged into same branch via PR):
-  - Clean Architecture restructure (domain/app/infra/presentation)
-  - 12+ bug fixes (MIME spoofing, sync I/O, atomic delete, scan_results table)
-  - Security hardening (env-driven config, magic MIME detection)
-  - ~1500 lines tests
-
-refactor/celery-task-queue:
-  - Removed custom Redis pub/sub event bus (redis_event_bus.py, subscriber.py)
-  - Direct Celery task invocation: FileService → scan_file_for_threats.delay()
-  - Celery handles broker abstraction (Redis/RabbitMQ via CELERY_BROKER_URL)
-  - 175 lines removed, 113 tests pass
-```
-
----
-
-## Полезные ссылки
-
-- [FSD Methodology](https://feature-sliced.design/)
-- [Clean Architecture (Python)](https://github.com/cosmic-python/code)
-- [SQLAlchemy 2.0 Async](https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html)
-- [FastAPI Dependencies](https://fastapi.tiangolo.com/tutorial/dependencies/)

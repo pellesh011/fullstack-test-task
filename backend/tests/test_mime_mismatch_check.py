@@ -1,7 +1,8 @@
 import pytest
 
 from src.application.scanner.checks.mime_mismatch_check import MimeMismatchCheck
-from src.models import StoredFile
+from src.domain.entities.scan_result import ScanResultStatus
+from src.domain.entities.stored_file import StoredFile
 
 
 @pytest.fixture
@@ -33,7 +34,7 @@ class TestMimeMismatchCheck:
     def test_extension_mismatch(self, check):
         result = check.check(_make_file("doc.pdf", mime_type="image/png"))
         assert result is not None
-        assert result.status == "suspicious"
+        assert result.status == ScanResultStatus.FAILED
         assert "pdf" in result.message
         assert "image/png" in result.message
 
@@ -85,7 +86,7 @@ class TestMimeMismatchCheck:
     def test_extension_mismatch_various(self, check, ext, wrong_mime):
         result = check.check(_make_file(f"file{ext}", mime_type=wrong_mime))
         assert result is not None
-        assert result.status == "suspicious"
+        assert result.status == ScanResultStatus.FAILED
         assert ext in result.message
         assert wrong_mime in result.message
 
@@ -98,7 +99,7 @@ class TestMimeMismatchCheck:
             )
         )
         assert result is not None
-        assert result.status == "suspicious"
+        assert result.status == ScanResultStatus.FAILED
         assert "client declared" in result.message
         assert "text/plain" in result.message
 
@@ -141,7 +142,7 @@ class TestMimeMismatchCheck:
             )
         )
         assert result is not None
-        assert result.status == "suspicious"
+        assert result.status == ScanResultStatus.FAILED
         assert "pdf" in result.message
         assert "image/png" in result.message
         assert "text/plain" in result.message

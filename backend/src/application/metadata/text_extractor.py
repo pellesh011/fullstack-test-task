@@ -2,7 +2,7 @@ import aiofiles
 from pathlib import Path
 
 from src.domain.interfaces.metadata_extractor import MetadataExtractor
-from src.models import StoredFile
+from src.infrastructure.database.models import StoredFile
 
 
 class TextMetadataExtractor(MetadataExtractor):
