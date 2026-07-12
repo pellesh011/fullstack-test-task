@@ -246,23 +246,23 @@ alembic revision --autogenerate -m "message"
 ## Git History (key commits)
 
 ```
-refactor/frontend-fds-layers:
+frontend-fds-layers:
   681f46f - FSD restructuring: app/pages/widgets/features/entities/shared
   (ESLint no-restricted-imports, types in entities/*/model/types.ts)
 
-Backend (merged into same branch via PR):
+clean-architecture (backend):
   - Clean Architecture restructure (domain/app/infra/presentation)
   - 12+ bug fixes (MIME spoofing, sync I/O, atomic delete, scan_results table)
   - Security hardening (env-driven config, magic MIME detection)
   - ~1500 lines tests
 
-refactor/clean-architecture-models:
+clean-architecture-models:
   - Moved ORM models from src/models.py → src/infrastructure/database/models/
   - Domain entities separate from SQLAlchemy models
   - Removed unique constraint on scan_results (file_id, check_name) — multiple results per check allowed
   - 113 tests pass
 
-refactor/celery-task-queue:
+celery-task-queue:
   - Removed custom Redis pub/sub event bus (redis_event_bus.py, subscriber.py)
   - Direct Celery task invocation: FileService → scan_file_for_threats.delay()
   - Celery handles broker abstraction (Redis/RabbitMQ via CELERY_BROKER_URL)
