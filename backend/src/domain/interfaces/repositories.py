@@ -1,23 +1,25 @@
 from collections.abc import Sequence
 from abc import ABC, abstractmethod
+from datetime import datetime
+from typing import Any
 
-from src.domain.entities.stored_file import StoredFile
-from src.domain.entities.alert import Alert
-from src.domain.entities.scan_result import ScanResult
+from src.domain.entities.file import File
+from src.domain.entities.processing_task import ProcessingTask
+from src.domain.entities.task_execution import TaskExecution
 
 
 class FileRepository(ABC):
     @abstractmethod
-    async def list_all(self) -> Sequence[StoredFile]: ...
+    async def list_all(self) -> Sequence[File]: ...
 
     @abstractmethod
-    async def get_by_id(self, file_id: str) -> StoredFile | None: ...
+    async def get_by_id(self, file_id: str) -> File | None: ...
 
     @abstractmethod
-    async def save(self, file: StoredFile) -> StoredFile: ...
+    async def save(self, file: File) -> File: ...
 
     @abstractmethod
-    async def delete(self, file: StoredFile) -> None: ...
+    async def delete(self, file: File) -> None: ...
 
     @abstractmethod
     async def flush(self) -> None: ...
@@ -29,28 +31,55 @@ class FileRepository(ABC):
     async def commit(self) -> None: ...
 
 
-class AlertRepository(ABC):
+class ProcessingTaskRepository(ABC):
     @abstractmethod
-    async def list_all(self) -> Sequence[Alert]: ...
+    async def get_by_id(self, task_id: int) -> ProcessingTask | None: ...
 
     @abstractmethod
-    async def save(self, alert: Alert) -> Alert: ...
-
-
-class ScanResultRepository(ABC):
-    @abstractmethod
-    async def list_for_file(self, file_id: str) -> Sequence[ScanResult]: ...
+    async def get_latest_for_file(self, file_id: str) -> ProcessingTask | None: ...
 
     @abstractmethod
-    async def list_for_file_by_status(
-        self, file_id: str, status: str
-    ) -> Sequence[ScanResult]: ...
+    async def save(self, task: ProcessingTask) -> ProcessingTask: ...
 
     @abstractmethod
-    async def delete_for_file(self, file_id: str) -> None: ...
+    async def delete(self, task: ProcessingTask) -> None: ...
 
     @abstractmethod
-    async def save_all(self, results: list[ScanResult]) -> None: ...
+    async def list_for_file(self, file_id: str) -> Sequence[ProcessingTask]: ...
+
+
+class TaskExecutionIssue:
+    def __init__(
+        self,
+        id: int,
+        file_id: str,
+        processor: str,
+        status: str,
+        details: dict[str, Any] | None,
+        created_at: datetime | None,
+    ):
+        self.id = id
+        self.file_id = file_id
+        self.processor = processor
+        self.status = status
+        self.details = details
+        self.created_at = created_at
+
+
+class TaskExecutionRepository(ABC):
+    @abstractmethod
+    async def get_by_id(self, execution_id: int) -> TaskExecution | None: ...
 
     @abstractmethod
-    async def upsert_all(self, file_id: str, results: list[ScanResult]) -> None: ...
+    async def list_for_processing_task(
+        self, processing_task_id: int
+    ) -> Sequence[TaskExecution]: ...
+
+    @abstractmethod
+    async def list_non_success(self) -> Sequence[TaskExecutionIssue]: ...
+
+    @abstractmethod
+    async def save(self, execution: TaskExecution) -> TaskExecution: ...
+
+    @abstractmethod
+    async def save_all(self, executions: list[TaskExecution]) -> None: ...

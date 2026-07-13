@@ -13,10 +13,8 @@ class FileItem(BaseModel):
     mime_type: str
     original_mime_type: str | None = None
     size: int
-    processing_status: str
-    scan_status: str | None
-    metadata_json: dict[str, Any] | None
-    requires_attention: bool
+    status: str
+    metadata: dict[str, Any] | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -25,22 +23,12 @@ class FileUpdate(BaseModel):
     title: str
 
 
-class AlertItem(BaseModel):
+class TaskExecutionIssue(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
     file_id: str
-    level: str
-    message: str
-    created_at: datetime
-
-
-class ScanResultItem(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    file_id: str
-    check_name: str
+    processor: str
     status: str
-    message: str | None
-    created_at: datetime
+    details: dict[str, Any] | None = None
+    created_at: datetime | None = None

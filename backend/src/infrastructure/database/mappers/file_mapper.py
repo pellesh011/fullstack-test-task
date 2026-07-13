@@ -1,15 +1,15 @@
-from src.domain.entities.stored_file import StoredFile
-from src.infrastructure.database.models import StoredFile as StoredFileModel
+from src.domain.entities.file import File
+from src.infrastructure.database.models import File as FileModel
 
 from .base import Mapper
 
 
-class FileMapper(Mapper[StoredFile, StoredFileModel]):
+class FileMapper(Mapper[File, FileModel]):
     def to_entity(
         self,
-        model: StoredFileModel,
-    ) -> StoredFile:
-        return StoredFile(
+        model: FileModel,
+    ) -> File:
+        return File(
             id=model.id,
             title=model.title,
             original_name=model.original_name,
@@ -17,19 +17,17 @@ class FileMapper(Mapper[StoredFile, StoredFileModel]):
             mime_type=model.mime_type,
             original_mime_type=model.original_mime_type,
             size=model.size,
-            processing_status=model.processing_status,
-            scan_status=model.scan_status,
+            status=model.status,
             metadata=model.metadata_json,
-            requires_attention=model.requires_attention,
             created_at=model.created_at,
             updated_at=model.updated_at,
         )
 
     def to_model(
         self,
-        entity: StoredFile,
-    ) -> StoredFileModel:
-        return StoredFileModel(
+        entity: File,
+    ) -> FileModel:
+        return FileModel(
             id=entity.id,
             title=entity.title,
             original_name=entity.original_name,
@@ -37,8 +35,6 @@ class FileMapper(Mapper[StoredFile, StoredFileModel]):
             mime_type=entity.mime_type,
             original_mime_type=entity.original_mime_type,
             size=entity.size,
-            processing_status=entity.processing_status,
-            scan_status=entity.scan_status,
+            status=entity.status,
             metadata_json=entity.metadata,
-            requires_attention=entity.requires_attention,
         )

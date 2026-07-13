@@ -3,34 +3,26 @@ from collections.abc import AsyncGenerator
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.application.scanner.checks.file_size_check import FileSizeCheck
-from src.application.scanner.checks.mime_mismatch_check import MimeMismatchCheck
-from src.application.scanner.checks.suspicious_extension import (
-    SuspiciousExtensionCheck,
-)
-from src.application.scanner.threat_scanner import ThreatScanner
-from src.application.services.alert_service import AlertService
 from src.application.services.file_service import FileService
 from src.domain.interfaces.file_storage import FileStorage
-from src.domain.interfaces.repositories import (
-    AlertRepository,
-    FileRepository,
-    ScanResultRepository,
-)
+from src.domain.interfaces.repositories import FileRepository, TaskExecutionRepository
+from src.domain.interfaces.task_dispatcher import TaskDispatcher
 from src.infrastructure.database.mappers.file_mapper import FileMapper
-from src.infrastructure.database.mappers.alert_mapper import AlertMapper
-from src.infrastructure.database.mappers.scan_result_mapper import ScanResultMapper
+from src.infrastructure.database.mappers.task_execution_mapper import (
+    TaskExecutionMapper,
+)
 from src.infrastructure.database import DatabaseSessionManager
-from src.infrastructure.repositories.alert_repository import SQLAlertRepository
 from src.infrastructure.repositories.file_repository import SQLFileRepository
-from src.infrastructure.repositories.scan_result_repository import (
-    SQLScanResultRepository,
+from src.infrastructure.repositories.task_execution_repository import (
+    SQLTaskExecutionRepository,
 )
 from src.infrastructure.storage.local_file_storage import LocalFileStorage
+from src.infrastructure.task_dispatcher import CeleryTaskDispatcher
 from src.core.config import settings
 
 _manager = DatabaseSessionManager()
 _storage: FileStorage = LocalFileStorage(settings.resolved_storage_dir)
+_task_dispatcher: TaskDispatcher = CeleryTaskDispatcher()
 
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
@@ -42,44 +34,27 @@ def get_file_repo(session: AsyncSession = Depends(get_session)) -> FileRepositor
     return SQLFileRepository(session, FileMapper())
 
 
-def get_alert_repo(session: AsyncSession = Depends(get_session)) -> AlertRepository:
-    return SQLAlertRepository(session, AlertMapper())
-
-
-def get_scan_result_repo(
-    session: AsyncSession = Depends(get_session),
-) -> ScanResultRepository:
-    return SQLScanResultRepository(session, ScanResultMapper())
-
-
 def get_file_storage() -> FileStorage:
     return _storage
+
+
+def get_task_dispatcher() -> TaskDispatcher:
+    return _task_dispatcher
 
 
 def get_file_service(
     file_repo: FileRepository = Depends(get_file_repo),
     file_storage: FileStorage = Depends(get_file_storage),
+    task_dispatcher: TaskDispatcher = Depends(get_task_dispatcher),
 ) -> FileService:
     return FileService(
         file_repo=file_repo,
         file_storage=file_storage,
+        task_dispatcher=task_dispatcher,
     )
 
 
-def get_alert_service(
-    alert_repo: AlertRepository = Depends(get_alert_repo),
-) -> AlertService:
-    return AlertService(alert_repo=alert_repo)
-
-
-def get_threat_scanner(
-    scan_result_repo: ScanResultRepository = Depends(get_scan_result_repo),
-) -> ThreatScanner:
-    return ThreatScanner(
-        checks=[
-            SuspiciousExtensionCheck(),
-            FileSizeCheck(),
-            MimeMismatchCheck(),
-        ],
-        scan_result_repo=scan_result_repo,
-    )
+def get_task_execution_repo(
+    session: AsyncSession = Depends(get_session),
+) -> TaskExecutionRepository:
+    return SQLTaskExecutionRepository(session, TaskExecutionMapper())

@@ -5,9 +5,11 @@ import magic
 from typing import Any
 
 from src.core.config import settings
-from src.domain.entities.stored_file import StoredFile
+from src.domain.entities.file import File
+from src.domain.enums import FileStatus
 from src.domain.interfaces.file_storage import FileStorage
 from src.domain.interfaces.repositories import FileRepository
+from src.domain.interfaces.task_dispatcher import TaskDispatcher
 from src.domain.exceptions import (
     FileNotFoundError,
     FileEmptyError,
@@ -22,20 +24,22 @@ class FileService:
         self,
         file_repo: FileRepository,
         file_storage: FileStorage,
+        task_dispatcher: TaskDispatcher,
     ):
         self._file_repo = file_repo
         self._file_storage = file_storage
+        self._task_dispatcher = task_dispatcher
 
-    async def list_files(self) -> list[StoredFile]:
+    async def list_files(self) -> list[File]:
         return list(await self._file_repo.list_all())
 
-    async def get_file(self, file_id: str) -> StoredFile:
+    async def get_file(self, file_id: str) -> File:
         file_item = await self._file_repo.get_by_id(file_id)
         if not file_item:
             raise FileNotFoundError(f"File with id {file_id} not found")
         return file_item
 
-    async def create_file(self, title: str, upload_file: Any) -> StoredFile:
+    async def create_file(self, title: str, upload_file: Any) -> File:
         if (
             upload_file.size is not None
             and upload_file.size > settings.max_file_size_warning_mb * 1024 * 1024
@@ -62,7 +66,7 @@ class FileService:
         except magic.MagicException:
             detected_mime = upload_file.content_type or "application/octet-stream"
 
-        file_item = StoredFile(
+        file_item = File(
             id=file_id,
             title=title,
             original_name=upload_file.filename or stored_name,
@@ -70,19 +74,19 @@ class FileService:
             mime_type=detected_mime,
             original_mime_type=upload_file.content_type,
             size=len(content),
-            processing_status="uploaded",
+            status=FileStatus.NEW,
         )
         try:
             saved = await self._file_repo.save(file_item)
-            # Domain event: file created - infrastructure will handle async processing
-            # This is now handled by the presentation layer via event handlers
+            # Start async processing pipeline
+            self._task_dispatcher.dispatch_start_file_processing(file_id)
         except Exception:
             await self._file_storage.delete(stored_name)
             raise
 
         return saved
 
-    async def update_file(self, file_id: str, title: str) -> StoredFile:
+    async def update_file(self, file_id: str, title: str) -> File:
         file_item = await self._file_repo.get_by_id(file_id)
         if not file_item:
             raise FileNotFoundError(f"File with id {file_id} not found")
@@ -105,7 +109,7 @@ class FileService:
 
         await self._file_repo.commit()
 
-    def get_storage_path(self, file_item: StoredFile) -> Path:
+    def get_storage_path(self, file_item: File) -> Path:
         path = self._file_storage.get_path(file_item.stored_name)
         if not path.exists():
             raise StoredFileNotFoundError(

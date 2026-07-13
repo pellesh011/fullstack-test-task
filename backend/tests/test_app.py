@@ -15,17 +15,6 @@ class TestListFiles:
         assert data[0]["title"] == "test file"
 
 
-class TestListAlerts:
-    async def test_empty(self, client: AsyncClient):
-        response = await client.get("/alerts")
-        assert response.status_code == 200
-        assert response.json() == []
-
-    async def test_with_alerts(self, client: AsyncClient, upload_file: dict):
-        response = await client.get("/alerts")
-        assert response.status_code == 200
-
-
 class TestCreateFile:
     async def test_create(self, client: AsyncClient):
         content = b"hello world"
@@ -40,7 +29,7 @@ class TestCreateFile:
         assert data["original_name"] == "test.txt"
         assert data["mime_type"] == "text/plain"
         assert data["size"] == 11
-        assert data["processing_status"] == "uploaded"
+        assert data["status"] == "new"
         assert data["id"] is not None
         assert "created_at" in data
         assert "updated_at" in data
@@ -146,19 +135,6 @@ class TestDeleteFile:
     async def test_not_found(self, client: AsyncClient):
         response = await client.delete("/files/nonexistent")
         assert response.status_code == 404
-
-
-class TestListScanResults:
-    async def test_empty(self, client: AsyncClient, upload_file: dict):
-        file_id = upload_file["id"]
-        response = await client.get(f"/files/{file_id}/scan-results")
-        assert response.status_code == 200
-        assert response.json() == []
-
-    async def test_not_found_file(self, client: AsyncClient):
-        response = await client.get("/files/nonexistent/scan-results")
-        assert response.status_code == 404
-        assert "not found" in response.json()["detail"].lower()
 
 
 class TestCORS:
