@@ -1,29 +1,31 @@
 import asyncio
 import magic
-from pathlib import Path
+from typing import Any
 
 from src.application.metadata.default_extractor import DefaultMetadataExtractor
 from src.application.metadata.pdf_extractor import PdfMetadataExtractor
 from src.application.metadata.text_extractor import TextMetadataExtractor
+from src.domain.entities.file import File
+from src.domain.interfaces.file_storage import FileStorage
 from src.domain.interfaces.metadata_extractor import MetadataExtractor
-from src.infrastructure.database.models import StoredFile
 
 
 def get_extractors() -> list[type[MetadataExtractor]]:
     return [
-        DefaultMetadataExtractor,
         TextMetadataExtractor,
         PdfMetadataExtractor,
+        DefaultMetadataExtractor,
     ]
 
 
-async def extract_metadata(file: StoredFile, stored_path: Path) -> dict:
+async def extract_metadata(file: File, storage: FileStorage) -> dict[str, Any]:
+    stored_path = storage.get_path(file.stored_name)
     real_mime = await asyncio.to_thread(magic.from_file, str(stored_path), mime=True)
-    result: dict = {}
+    result: dict[str, Any] = {}
     for cls in get_extractors():
         if cls.can_handle(real_mime):
             extractor = cls()
-            extracted = await extractor.extract(file, stored_path)
+            extracted = await extractor.extract(file, storage)
             for key, value in extracted.items():
                 if key not in result:
                     result[key] = value

@@ -1,7 +1,8 @@
-from pathlib import Path
+from typing import Any
 
+from src.domain.entities.file import File
+from src.domain.interfaces.file_storage import FileStorage
 from src.domain.interfaces.metadata_extractor import MetadataExtractor
-from src.infrastructure.database.models import StoredFile
 
 
 class DefaultMetadataExtractor(MetadataExtractor):
@@ -9,9 +10,11 @@ class DefaultMetadataExtractor(MetadataExtractor):
     def can_handle(mime_type: str) -> bool:
         return True
 
-    async def extract(self, file: StoredFile, stored_path: Path) -> dict:
+    async def extract(self, file: File, storage: FileStorage) -> dict[str, Any]:
         return {
-            "extension": Path(file.original_name).suffix.lower(),
+            "extension": file.original_name.split(".")[-1].lower()
+            if "." in file.original_name
+            else "",
             "size_bytes": file.size,
             "mime_type": file.mime_type,
         }

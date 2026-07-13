@@ -20,7 +20,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["ruff>=0.11.0"]
+dev = ["ruff>=0.11.0", "import-linter", "pyright"]
 test = [
     "pytest>=8.0",
     "pytest-asyncio>=0.25",
@@ -29,6 +29,39 @@ test = [
     "aiosqlite>=0.20",
 ]
 
+[tool.importlinter]
+root_package = "src"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "domain-isolation"
+type = "independence"
+modules = ["src.domain"]
+
+[[tool.importlinter.contracts]]
+name = "application-depends-only-on-domain"
+type = "layers"
+layers = ["src.application", "src.domain"]
+modules = ["src.application"]
+
+[[tool.importlinter.contracts]]
+name = "infrastructure-depends-on-domain"
+type = "layers"
+layers = ["src.infrastructure", "src.domain"]
+modules = ["src.infrastructure"]
+
+[[tool.importlinter.contracts]]
+name = "presentation-depends-on-app-and-domain"
+type = "layers"
+layers = ["src.presentation", "src.application", "src.domain"]
+modules = ["src.presentation"]
+
+[[tool.importlinter.contracts]]
+name = "no-fastapi-in-application"
+type = "forbidden"
+source_modules = ["src.application"]
+forbidden_modules = ["fastapi", "celery", "sqlalchemy", "redis", "aiofiles"]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
@@ -36,5 +69,22 @@ testpaths = ["tests"]
 
 [dependency-groups]
 dev = [
+    "import-linter>=2.13",
     "ruff>=0.15.21",
+    "pyright",
+    "pre-commit>=4.6.0",
 ]
+
+[tool.pyright]
+include = ["src"]
+exclude = ["**/__pycache__", "**/.venv", "**/tests"]
+pythonVersion = "3.14"
+typeCheckingMode = "strict"
+reportMissingImports = true
+reportMissingTypeStubs = false
+reportUnknownMemberType = false
+reportUnknownVariableType = false
+reportUnknownParameterType = false
+reportUnknownArgumentType = false
+reportUntypedFunctionDecorator = false
+reportUntypedClassDecorator = false

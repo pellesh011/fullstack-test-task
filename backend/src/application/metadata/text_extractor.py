@@ -1,8 +1,9 @@
-import aiofiles
-from pathlib import Path
+from typing import Any
 
+from src.domain.entities.file import File
+from src.domain.interfaces.file_storage import FileStorage
 from src.domain.interfaces.metadata_extractor import MetadataExtractor
-from src.infrastructure.database.models import StoredFile
+from pathlib import Path
 
 
 class TextMetadataExtractor(MetadataExtractor):
@@ -10,11 +11,8 @@ class TextMetadataExtractor(MetadataExtractor):
     def can_handle(mime_type: str) -> bool:
         return mime_type.startswith("text/")
 
-    async def extract(self, file: StoredFile, stored_path: Path) -> dict:
-        async with aiofiles.open(
-            stored_path, "r", encoding="utf-8", errors="ignore"
-        ) as f:
-            content = await f.read()
+    async def extract(self, file: File, storage: FileStorage) -> dict[str, Any]:
+        content = await storage.read_text(file.stored_name)
         return {
             "extension": Path(file.original_name).suffix.lower(),
             "size_bytes": file.size,

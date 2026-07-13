@@ -1,7 +1,6 @@
 import tempfile
 from pathlib import Path
 
-import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
@@ -13,11 +12,11 @@ from src.infrastructure.database.models import Base
 TEST_STORAGE_DIR = Path(tempfile.mkdtemp())
 
 
-@pytest.fixture(autouse=True)
-def _mock_celery_tasks(monkeypatch):
-    monkeypatch.setattr("src.tasks.scan_file_for_threats.delay", lambda file_id: None)
-    monkeypatch.setattr("src.tasks.extract_file_metadata.delay", lambda file_id: None)
-    monkeypatch.setattr("src.tasks.send_file_alert.delay", lambda file_id: None)
+class MockTaskDispatcher:
+    def dispatch_start_file_processing(
+        self, file_id: str, pipeline_type: str = "default_file_processing"
+    ) -> str:
+        return "mock-task-id"
 
 
 @pytest_asyncio.fixture(scope="session")
@@ -47,6 +46,7 @@ async def _patch_dependencies(test_engine, monkeypatch):
     from src.infrastructure.storage.local_file_storage import LocalFileStorage
 
     deps._storage = LocalFileStorage(TEST_STORAGE_DIR)
+    deps._task_dispatcher = MockTaskDispatcher()
 
 
 @pytest_asyncio.fixture
@@ -73,7 +73,7 @@ async def client(test_engine):
 
 
 @pytest_asyncio.fixture
-async def upload_file(client: AsyncClient) -> dict:
+async def upload_file(client: AsyncClient):
     content = b"hello world\nthis is a test file\nline three"
     response = await client.post(
         "/files",
