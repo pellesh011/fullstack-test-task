@@ -1,14 +1,14 @@
-# Fullstack Test Task — File Sharing Service
+# Fullstack Test Task — File Processing Service
 
-**MVP файлообменника с проверкой файлов на подозрительный контент и системой алертов**
+**Файлообменник с пайплайном параллельной проверки файлов на базе Celery Canvas (group/chord/chain)**
 
 ## Стек
 
 | Frontend | Backend |
 |----------|---------|
-| Next.js 15 (Turbopack), React 18, TypeScript | Python 3.12, FastAPI, SQLAlchemy 2.0 (async) |
+| Next.js 18 (App Router), React 18, TypeScript | Python 3.14, FastAPI, SQLAlchemy 2.0 (async) |
 | React-Bootstrap 2, Bootstrap 5 | PostgreSQL (asyncpg), Redis, Celery |
-| ESLint (typescript-eslint), no-restricted-imports | Pydantic Settings, Alembic, pytest-asyncio |
+| ESLint (typescript-eslint), no-restricted-imports | Pydantic v2, Alembic, pytest-asyncio |
 
 ---
 
@@ -18,49 +18,58 @@
 
 ```
 src/
-├── app/                          # Next.js App Router entry
-│   └── page.tsx                  # Thin entry → imports FilesPage
+├── app/                              # Next.js App Router entry
+│   ├── layout.tsx
+│   └── page.tsx
 ├── pages/
 │   └── files-page/
-│       └── ui/FilesPage.tsx      # Page composition: state + widgets
+│       └── ui/FilesPage.tsx          # Page composition: state + widgets
 ├── widgets/
 │   ├── files-widget/
-│   │   ├── ui/FilesWidget.tsx    # Card + Header + FileTable
-│   │   └── ui/FileTable.tsx      # Table with UploadModal + AlertBadge
+│   │   └── ui/FilesWidget.tsx        # Card + Header + FileTable
 │   └── alerts-widget/
-│       ├── ui/AlertsWidget.tsx
-│       └── ui/AlertTable.tsx
+│       └── ui/AlertsWidget.tsx       # Card + Header + AlertTable
 ├── features/
-│   ├── file-upload/              # USER ACTION: upload file
-│   │   ├── api/uploadFile.ts     # httpPost → /files/upload
-│   │   ├── model/useFileUpload.ts# useState + upload logic
-│   │   └── ui/UploadModal.tsx    # Modal + Form + Progress
-│   ├── files-list/               # LIST FEATURE: files list + polling
-│   │   ├── api/useFiles.ts       # httpGet → /files + poll 5s
-│   │   └── model/useFiles.ts     # useState + useEffect
-│   └── alerts-list/              # LIST FEATURE: alerts list + polling
-│       ├── api/useAlerts.ts
-│       └── model/useAlerts.ts
+│   ├── file-upload/                  # USER ACTION: upload file
+│   │   ├── api/uploadFile.ts         # httpPost → /files
+│   │   ├── model/useFileUpload.ts    # useState + upload logic
+│   │   └── ui/UploadModal.tsx        # Modal + Form + Progress
+│   ├── files-list/                   # LIST FEATURE: files list + polling
+│   │   ├── api/fetchFiles.ts         # httpGet → /files + poll 5s
+│   │   ├── model/useFiles.ts         # useState + useEffect
+│   │   └── ui/FileTable.tsx          # Table with status badges
+│   └── alerts-list/                  # LIST FEATURE: task execution issues
+│       ├── api/fetchAlerts.ts        # httpGet → /task-executions/issues
+│       ├── model/useAlerts.ts        # useState + useEffect
+│       └── ui/AlertTable.tsx         # Table with level badges
 ├── entities/
 │   ├── file/
-│   │   ├── model/types.ts        # FileItem (SSOT для типа файла)
-│   │   └── api/fileApi.ts        # getFiles(), getFile() — entity API
+│   │   ├── model/types.ts            # FileItem (SSOT для типа файла)
+│   │   └── api/fileApi.ts            # getFiles(), getFile()
 │   └── alert/
-│       ├── model/types.ts        # AlertItem (SSOT для алерта)
-│       └── api/alertApi.ts       # getAlerts()
+│       ├── model/types.ts            # AlertItem (SSOT для issue)
+│       └── api/alertApi.ts           # getAlerts()
 └── shared/
     ├── api/
-    │   ├── client.ts             # httpGet, httpPost (infrastructure only)
-    │   └── config/api.ts         # API_BASE from env
-    ├── ui/                       # Button, Card, Table, Modal, Badge, Spinner
-    ├── config/env.ts             # Env validation
-    └── lib/utils.ts              # cn(), formatBytes(), formatDate()
+    │   └── client.ts                 # httpGet, httpPost (infrastructure only)
+    ├── config/
+    │   └── api.ts                    # API_BASE from env
+    ├── lib/
+    │   ├── badges.ts                 # getLevelVariant(), getProcessingVariant()
+    │   ├── date.ts                   # formatDate()
+    │   └── filesize.ts               # formatSize()
+    ├── types/
+    │   └── entities.ts               # FileItem, AlertItem (shared types)
+    └── ui/components/
+        ├── LoadingSpinner.tsx
+        ├── ErrorAlert.tsx
+        └── StatusBadge.tsx
 ```
 
 **Правила FSD (enforced ESLint `no-restricted-imports`):**
 - `entities/*/model/types.ts` — **single source of truth** для типов сущностей
 - `shared/api/client.ts` — **только инфраструктура** (`httpGet`, `httpPost`), никакой бизнес-логики
-- `features/*` — только **пользовательские действия** (`file-upload`) или композиция списков (`files-list`, `alerts-list`)
+- `features/*` — **пользовательские действия** (`file-upload`) или композиция списков (`files-list`, `alerts-list`)
 - `widgets/*` — композиция UI из shared UI + entities
 - `pages/*` — композиция виджетов + page-level state
 - `app/*` — тонкий entry point
@@ -71,43 +80,51 @@ src/
 
 ```
 backend/src/
-├── domain/                       # Чистая доменные модели, интерфейсы
-│   ├── entities/                 # StoredFile, Alert, ScanResult (domain entities)
-│   ├── interfaces/
-│   │   ├── repositories.py       # FileRepository, AlertRepository, ScanResultRepository
-│   │   ├── storage.py            # FileStorage
-│   │   └── scanner.py            # ScanCheck (strategy)
-│   └── value_objects.py          # FileId, MimeType, FileSize
-├── application/                  # Use cases, сервисы, DTO
+├── domain/                           # Чистые доменные модели, интерфейсы
+│   ├── entities/
+│   │   ├── file.py                   # File — загруженный файл
+│   │   ├── processing_task.py        # ProcessingTask — пайплайн обработки
+│   │   └── task_execution.py         # TaskExecution — результат одного процессора
+│   ├── enums.py                      # FileStatus, ProcessingTaskStatus, ProcessorType, TaskExecutionStatus
+│   ├── exceptions.py                 # DomainException, FileNotFoundError, FileEmptyError
+│   └── interfaces/
+│       ├── repositories.py           # FileRepository, ProcessingTaskRepository, TaskExecutionRepository
+│       ├── file_storage.py           # FileStorage (port для хранилища файлов)
+│       ├── task_dispatcher.py        # TaskDispatcher (port для диспатча задач)
+│       └── metadata_extractor.py     # MetadataExtractor (port для извлечения метаданных)
+├── application/                      # Use cases, сервисы
 │   ├── services/
-│   │   ├── file_service.py       # upload, delete, list, get — orchestration
-│   │   ├── alert_service.py      # create alerts from scan results
-│   │   └── scanner/
-│   │       ├── checks/           # 8 проверок (extension, size, mime, magic, pdf, text, executable, archive)
-│   │       ├── orchestrator.py   # последовательный запуск чеков
-│   │       └── service.py        # ScannerService
-│   └── dto.py                    # FileCreate, FileUpdate, AlertCreate, ScanResultCreate
-├── infrastructure/               # Реализации интерфейсов
+│   │   └── file_service.py           # upload, delete, list, get, update — orchestration
+│   └── metadata/                     # Извлечение метаданных из файлов
+│       ├── extractor_registry.py     # extract_metadata() — оркестратор
+│       ├── default_extractor.py      # DefaultMetadataExtractor (fallback)
+│       ├── text_extractor.py         # TextMetadataExtractor (text/*)
+│       └── pdf_extractor.py          # PdfMetadataExtractor (application/pdf)
+├── infrastructure/                   # Реализации интерфейсов
 │   ├── database/
-│   │   ├── models/               # SQLAlchemy ORM модели (table definitions)
-│   │   ├── mappers/              # Domain↔ORM мапперы (FileMapper, AlertMapper, ScanResultMapper)
-│   │   ├── session.py            # DatabaseSessionManager (lazy init, pool)
-│   │   └── repositories/         # SQLFileRepository, SQLAlertRepository, SQLScanResultRepository
+│   │   ├── models.py                 # SQLAlchemy ORM модели (File, ProcessingTask, TaskExecution)
+│   │   ├── database_manager.py       # DatabaseSessionManager (lazy init, pool)
+│   │   └── mappers/
+│   │       ├── base.py               # Mapper[EntityT, ModelT] — абстрактный базовый
+│   │       ├── file_mapper.py        # File ↔ ORM
+│   │       ├── processing_task_mapper.py
+│   │       └── task_execution_mapper.py
+│   ├── repositories/
+│   │   ├── file_repository.py        # SQLFileRepository
+│   │   ├── processing_task_repository.py
+│   │   └── task_execution_repository.py
 │   ├── storage/
-│   │   └── local_storage.py      # LocalFileStorage (atomic write, safe delete)
-│   ├── scanner/checks/           # Реализации ScanCheck
-│   └── celery/                   # Celery app, tasks, worker loop
-├── presentation/                 # FastAPI слой
-│   ├── api/
-│   │   ├── routes/
-│   │   │   ├── files.py          # POST/GET/DELETE /files, POST /files/upload
-│   │   │   ├── alerts.py         # GET /alerts
-│   │   │   └── scan_results.py   # GET /files/{id}/scan-results
-│   │   ├── schemas.py            # Pydantic модели request/response
-│   │   └── dependencies.py       # get_file_service, get_alert_service, get_scanner_service
-│   └── main.py                   # FastAPI app, lifespan, CORS, exception handlers
-├── core/
-│   └── config.py                 # Pydantic BaseSettings (env-driven)
+│   │   └── local_file_storage.py     # LocalFileStorage (async aiofiles)
+│   └── task_dispatcher.py            # CeleryTaskDispatcher — реализация TaskDispatcher
+├── presentation/                     # FastAPI слой
+│   ├── routes.py                     # Все эндпоинты
+│   ├── dependencies.py               # DI: get_file_service, get_task_execution_repo
+│   └── main.py                       # FastAPI app, CORS, exception handlers
+├── schemas.py                        # Pydantic модели response (FileItem, TaskExecutionIssue)
+├── tasks.py                          # Celery tasks + Canvas workflow
+├── app.py                            # FastAPI app entry point
+└── core/
+    └── config.py                     # Pydantic BaseSettings (env-driven)
 ```
 
 **Поток зависимостей:**
@@ -117,69 +134,110 @@ presentation → application → domain ← infrastructure
 
 ---
 
-## Что сделано — Frontend
+### Celery Pipeline — Canvas Workflow
 
-| Было | Стало |
-|------|-------|
-| 2 файла: `page.tsx` (600+ строк) + `api.ts` | FSD слои: `app/pages/widgets/features/entities/shared` |
-| Все типы в `shared/types/entities.ts` | Типы в `entities/*/model/types.ts` (SSOT) |
-| `shared/api/files.ts` с бизнес-логикой | `shared/api/client.ts` — только `httpGet`/`httpPost` |
-| Хуки в компонентах | Хуки вынесены в `features/*/model/` |
-| Прямые импорты куда угодно | ESLint `no-restricted-imports` блокирует нарушения слоёв |
-| `useState`/`useEffect` в компонентах | Сохранено (по требованию) |
-| React-Bootstrap | Сохранено (по требованию) |
+Файлы обрабатываются параллельно через **Celery Canvas** (`chord(group(...))(callback)`):
 
-**Ключевые файлы:**
-- `eslint.config.mjs` — правила FSD границ
-- `tsconfig.json` — `@/*` алиасы, `strictNullChecks: true`
-- `package.json` — добавлен `lint` скрипт
+```
+start_file_processing (entry point)
+    │
+    ▼
+chord(group(
+    metadata_extract,      ─┐
+    size_check,             │ parallel
+    extension_validator,    │
+    mime_validate,          │
+    antivirus_scan         ─┘
+))(finalize_processing)
+    │
+    ▼
+finalize_processing (aggregates results → sets file.status)
+```
+
+**Каждый процессор:**
+1. Создаёт `TaskExecution` со статусом `RUNNING`
+2. Выполняет проверку
+3. Обновляет тот же `TaskExecution` финальным статусом (`SUCCESS`/`WARNING`/`FAILED`)
+
+**`finalize_processing` (chord callback):**
+- Получает список результатов от всех процессоров
+- Агрегирует статусы: если хотя бы один `FAILED` → файл `FAILED`, если `WARNING` → файл `WARNING`, иначе → `OK`
+- Обновляет `ProcessingTask.status` и `File.status`
+
+**Ключевые особенности:**
+- `TaskDispatcher` — port/adapter паттерн для декомпозиции application от infrastructure
+- `execution_id` передаётся между вызовами `_save_task_execution` для обновления записи вместо создания новой
+- `TaskExecutionMapper.to_model()` копирует `id` для корректной работы `session.merge()`
 
 ---
 
-## Что сделано — Backend
+### Типы файлов и статусы
 
-### Архитектурный рефакторинг
+**`File.status`:**
+| Статус | Описание |
+|--------|----------|
+| `new` | Файл загружен, ожидает обработки |
+| `processing` | Пайплайн запущен |
+| `ok` | Все проверки пройдены |
+| `warning` | Есть предупреждения (размер, расширение, MIME) |
+| `failed` | Есть ошибки |
+
+**`TaskExecution.status`:**
+| Статус | Описание |
+|--------|----------|
+| `pending` | Ожидает запуска |
+| `running` | В процессе |
+| `success` | Успешно завершено |
+| `warning` | Завершено с предупреждениями |
+| `failed` | Ошибка |
+| `skipped` | Пропущено |
+
+**`ProcessorType`:**
+| Процессор | Проверка |
+|-----------|----------|
+| `metadata_extractor` | Извлечение метаданных (размер, тип, MIME) |
+| `size_check` | Сравнение размера с `MAX_FILE_SIZE_MB` |
+| `extension_validator` | Проверка расширения на `SUSPICIOUS_EXTENSIONS` |
+| `mime_validator` | Сравнение client MIME vs реальный MIME |
+| `antivirus_scan` | Антивирусная проверка (заглушка) |
+
+---
+
+## Что сделано
+
+### Backend
+
+| Компонент | Файлы | Ответственность |
+|-----------|-------|-----------------|
+| `domain` | 6 файлов | Entities, Enums, Exceptions, Interfaces |
+| `application` | 5 файлов | FileService, MetadataExtractors |
+| `infrastructure` | 9 файлов | SQLAlchemy repos, mappers, LocalFileStorage, CeleryTaskDispatcher |
+| `presentation` | 3 файла | FastAPI routes, DI, exception handlers |
+| `tasks` | 1 файл | Celery tasks + Canvas workflow |
+
+### Frontend
 
 | Слой | Файлы | Ответственность |
 |------|-------|-----------------|
-| `domain` | 8 файлов | Entities, Value Objects, Repository interfaces |
-| `application` | 15+ файлов | Services, Use Cases, DTO, Scanner (8 checks + orchestrator) |
-| `infrastructure` | 12+ файлов | SQLAlchemy repos, LocalFileStorage, Celery tasks |
-| `presentation` | 8 файлов | FastAPI routes, Pydantic schemas, DI, exception handlers |
+| `app` | 2 файла | Next.js entry |
+| `pages` | 1 файл | Страница файлов |
+| `widgets` | 2 файла | Compose UI |
+| `features` | 9 файлов | Upload, files-list, alerts-list |
+| `entities` | 5 файлов | Types + API |
+| `shared` | 10 файлов | API client, lib, UI components |
 
 ### Исправленные баги
 
-| Баг | Было | Стало |
-|-----|------|-------|
-| **Потеря данных при удалении** | `unlink()` → `delete()` → `commit()` — если commit упадёт, файл потерян | `flush()` → `unlink()` → при ошибке `rollback()` → `commit()` только при успехе |
-| **MIME-spoofing** | `upload_file.content_type` (клиент врал) | `magic.from_buffer(content, mime=True)` — определение по бинарному содержимому |
-| **`scan_details` — плоская строка** | Одна строка на 500 символов, обрезалась | Таблица `scan_results` — каждая проверка отдельная строка в `Text` |
-| **Integer overflow для размера** | `Integer` (max ~2.1 GB) | `BigInteger` (max ~9.2 EB) |
-| **`scan_details` не существует** | Код писал в `scan_details`, но поле удалено | Пишет в `ScanResult` с `check_name="metadata_extraction"` |
-| **Sync I/O в async** | `Path.read_bytes()`, `write_bytes()` блокируют event loop | `aiofiles` для асинхронного чтения/записи |
-| **Небезопасное удаление** | `unlink()` без проверки владельца, race condition | Проверка `stored_name` + атомарная транзакция |
-| **Небезопасные tmp директории** | `tempfile.gettempdir()` (world-writable) | `tempfile.mkdtemp(dir=secure_dir, prefix=...)` |
-| **Нет обработки ошибок сканера** | Ошибка сканера крашит задачу Celery | Try/except в каждом чеке, статус `failed`, алерт `critical` |
-| **DB connection при импорте** | Создаётся при импорте модуля, крашится без env | Lazy init через `DatabaseSessionManager.dispose()` |
-| **Redis без reconnection** | Прямой `.delay()` без обработки ошибок | Celery task retry + брокер управляет соединением |
-| **CORS хардкод** | `localhost:3000` | `CORS_ORIGINS` env var |
-
-### Безопасность
-
-- **MIME validation**: 80+ расширений в `KNOWN_MIME_TYPES` + сравнение `original_mime_type` (от клиента) vs реальный MIME
-- **Подозрительные расширения**: `SUSPICIOUS_EXTENSIONS` env var (было 5 захардкоженных)
-- **Max file size**: `MAX_FILE_SIZE_MB` env var (было `10 * 1024 * 1024` в коде)
-
-### Новые фичи
-
-- `GET /files/{id}/scan-results` — детальные результаты сканирования
-- `original_mime_type` — аудит client MIME vs реальный MIME
-- Alembic миграции (4 версии: init, scan_results, alerts, drop unique constraint)
-- `AlertService` с детальными сообщениями из scan results
-
-### Тесты
-
-~1500 строк тестов, 6 файлов: `test_service.py`, `test_repositories.py`, `test_scanner.py`, `test_schemas.py`, `test_storage.py`, `test_config.py` (pytest-asyncio)
+| Баг | Решение |
+|-----|---------|
+| **Дубли `TaskExecution`** | `to_model()` копирует `id`, `execution_id` передаётся между вызовами |
+| **Chord callback arity** | `finalize_processing` принимает `results` как первый аргумент |
+| **`apply_async()` на `AsyncResult`** | `chord(...)()` уже диспатчит, повторный вызов не нужен |
+| **MIME-spoofing** | `magic.from_buffer(content, mime=True)` — определение по бинарному содержимому |
+| **Integer overflow** | `BigInteger` для размера файла |
+| **Sync I/O в async** | `aiofiles` для асинхронного чтения/записи |
+| **DB connection при импорте** | Lazy init через `DatabaseSessionManager` |
+| **Architecture violation** | `TaskDispatcher` port/adapter для декомпозиции от Celery |
 
 ---
 
@@ -189,10 +247,10 @@ presentation → application → domain ← infrastructure
 # Development (hot reload)
 docker compose -f docker-compose.dev.yml up
 
-# Миграции
+# Миграции (выполняются автоматически через entrypoint.sh)
 docker exec -it backend alembic upgrade head
 
-# Frontend: http://localhost:3000/test
+# Frontend: http://localhost:3000
 # Backend API: http://localhost:8000/docs
 ```
 
@@ -206,22 +264,20 @@ POSTGRES_HOST=db
 POSTGRES_DB=fileshare
 PGPORT=5432
 
-REDIS_URL=redis://redis:6379/0
+REDIS_URL=redis://redis:63379/0
 
 CORS_ORIGINS=http://localhost:3000
 MAX_FILE_SIZE_MB=50
 SUSPICIOUS_EXTENSIONS=.exe,.bat,.cmd,.sh,.js,.vbs,.ps1,.jar,.scr,.com,.pif,.msi,.dll,.sys,.apk,.ipa,.deb,.rpm,.appimage
-KNOWN_MIME_TYPES=... (80+ типов)
 
 STORAGE_PATH=/app/storage/files
-SCANNER_DELAY_SECONDS=2
 ```
 
 ### Переменные окружения (frontend)
 
 ```env
 # frontend/.env.local
-NEXT_PUBLIC_API_BASE=http://localhost:8000
+NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
 
 ---
@@ -231,15 +287,28 @@ NEXT_PUBLIC_API_BASE=http://localhost:8000
 ```bash
 # Frontend
 cd frontend
-npm run dev        # Turbopack dev server
-npm run build      # Production build
-npm run lint       # ESLint (FSD rules enforced)
+npm run dev            # Dev server
+npm run build          # Production build
+npm run lint           # ESLint (FSD rules enforced)
 
 # Backend
 cd backend
-pytest -v          # Run tests
-alembic upgrade head
-alembic revision --autogenerate -m "message"
+python -m pytest -v    # Run tests (23 tests)
+alembic upgrade head   # Run migrations
+alembic revision --autogenerate -m "message"  # Create migration
 ```
 
 ---
+
+## API Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/files` | Список файлов |
+| `POST` | `/files` | Загрузка файла (multipart form) |
+| `GET` | `/files/{id}` | Получить файл |
+| `PATCH` | `/files/{id}` | Обновить название |
+| `DELETE` | `/files/{id}` | Удалить файл |
+| `GET` | `/files/{id}/download` | Скачать файл |
+| `GET` | `/task-executions/issues` | Проблемные проверки (не success) |
+| `GET` | `/health` | Health check |

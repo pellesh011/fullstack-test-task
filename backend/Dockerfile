@@ -14,5 +14,3 @@ RUN uv sync --locked
 COPY src ./src
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
-
-ENTRYPOINT ["/entrypoint.sh"]

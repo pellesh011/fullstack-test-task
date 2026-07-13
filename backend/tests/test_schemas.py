@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 import pytest
 from pydantic import ValidationError
 
-from src.schemas import AlertItem, FileItem, FileUpdate, ScanResultItem
+from src.schemas import FileItem, FileUpdate
 
 
 class TestFileItem:
@@ -16,10 +16,8 @@ class TestFileItem:
             mime_type="text/plain",
             original_mime_type=None,
             size=100,
-            processing_status="uploaded",
-            scan_status=None,
+            status="new",
             metadata_json=None,
-            requires_attention=False,
             created_at=now,
             updated_at=now,
         )
@@ -27,17 +25,14 @@ class TestFileItem:
         assert item.title == "test"
 
     def test_missing_required_fields(self):
-        # FileItem requires all fields - check that missing id raises
         with pytest.raises(ValidationError):
             FileItem(
                 title="test",
                 original_name="y",
                 mime_type="z",
                 size=1,
-                processing_status="p",
-                scan_status="s",
+                status="new",
                 metadata_json=None,
-                requires_attention=False,
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
             )
@@ -54,62 +49,3 @@ class TestFileUpdate:
     def test_missing_title(self):
         with pytest.raises(ValidationError):
             FileUpdate()
-
-
-class TestAlertItem:
-    def test_valid(self):
-        now = datetime.now(timezone.utc)
-        alert = AlertItem(
-            id=1,
-            file_id="file-id",
-            level="info",
-            message="test message",
-            created_at=now,
-        )
-        assert alert.id == 1
-        assert alert.level == "info"
-
-    def test_from_attributes_config(self):
-        assert AlertItem.model_config.get("from_attributes") is True
-
-    def test_invalid_level_type(self):
-        now = datetime.now(timezone.utc)
-        with pytest.raises(ValidationError):
-            AlertItem(  # type: ignore[arg-type]
-                id=1,
-                file_id="file-id",
-                level=123,
-                message="test",
-                created_at=now,
-            )
-
-
-class TestScanResultItem:
-    def test_valid(self):
-        now = datetime.now(timezone.utc)
-        item = ScanResultItem(
-            id=1,
-            file_id="file-id",
-            check_name="basic_scan",
-            status="clean",
-            message="no threats found",
-            created_at=now,
-        )
-        assert item.id == 1
-        assert item.check_name == "basic_scan"
-        assert item.status == "clean"
-
-    def test_nullable_message(self):
-        now = datetime.now(timezone.utc)
-        item = ScanResultItem(
-            id=2,
-            file_id="file-id",
-            check_name="suspicious_extension",
-            status="suspicious",
-            message=None,
-            created_at=now,
-        )
-        assert item.message is None
-
-    def test_from_attributes_config(self):
-        assert ScanResultItem.model_config.get("from_attributes") is True

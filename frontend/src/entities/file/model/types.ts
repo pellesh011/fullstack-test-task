@@ -3,11 +3,10 @@ export type FileItem = {
   title: string;
   original_name: string;
   mime_type: string;
+  original_mime_type: string | null;
   size: number;
-  processing_status: string;
-  scan_status: string | null;
-  metadata_json: Record<string, unknown> | null;
-  requires_attention: boolean;
+  status: string;
+  metadata: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 };

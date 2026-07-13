@@ -5,7 +5,7 @@ from typing import Any
 from src.application.metadata.default_extractor import DefaultMetadataExtractor
 from src.application.metadata.pdf_extractor import PdfMetadataExtractor
 from src.application.metadata.text_extractor import TextMetadataExtractor
-from src.domain.entities.stored_file import StoredFile
+from src.domain.entities.file import File
 from src.domain.interfaces.file_storage import FileStorage
 from src.domain.interfaces.metadata_extractor import MetadataExtractor
 
@@ -18,7 +18,7 @@ def get_extractors() -> list[type[MetadataExtractor]]:
     ]
 
 
-async def extract_metadata(file: StoredFile, storage: FileStorage) -> dict[str, Any]:
+async def extract_metadata(file: File, storage: FileStorage) -> dict[str, Any]:
     stored_path = storage.get_path(file.stored_name)
     real_mime = await asyncio.to_thread(magic.from_file, str(stored_path), mime=True)
     result: dict[str, Any] = {}
