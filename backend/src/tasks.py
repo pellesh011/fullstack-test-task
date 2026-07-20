@@ -81,6 +81,7 @@ async def _save_task_execution(
                 existing.finished_at = finished_at
                 existing.duration_ms = duration_ms
                 saved = await uow.task_execution_repo.save(existing)
+                await uow.commit()
                 assert saved.id is not None
                 return saved.id
         execution = TaskExecution(
@@ -113,6 +114,7 @@ async def _update_processing_task_status(
             if status in (ProcessingTaskStatus.SUCCESS, ProcessingTaskStatus.FAILED):
                 task.finished_at = datetime.now()
             await uow.processing_task_repo.save(task)
+            await uow.commit()
 
 
 async def _update_file_status(file_id: str, status: FileStatus) -> None:
@@ -122,6 +124,7 @@ async def _update_file_status(file_id: str, status: FileStatus) -> None:
         if file_item:
             file_item.status = status
             await uow.file_repo.save(file_item)
+            await uow.commit()
 
 
 @celery_app.task(bind=True)
@@ -268,8 +271,6 @@ def size_check(self: Any, processing_task_id: int) -> dict[str, Any]:
                     execution_id=execution_id,
                 )
 
-                await uow.commit()
-
                 return {"status": "success", "details": details}
 
             except Exception as e:
@@ -345,7 +346,6 @@ def extension_validator(self: Any, processing_task_id: int) -> dict[str, Any]:
                     duration_ms=duration_ms,
                     execution_id=execution_id,
                 )
-                await uow.commit()
 
                 return {"status": "success", "details": details}
 
@@ -432,7 +432,6 @@ def mime_validate(self: Any, processing_task_id: int) -> dict[str, Any]:
                     duration_ms=duration_ms,
                     execution_id=execution_id,
                 )
-                await uow.commit()
 
                 return {"status": "success", "details": details}
 
@@ -500,7 +499,6 @@ def antivirus_scan(self: Any, processing_task_id: int) -> dict[str, Any]:
                     duration_ms=duration_ms,
                     execution_id=execution_id,
                 )
-                await uow.commit()
 
                 return {"status": "success", "details": details}
 
@@ -541,7 +539,9 @@ def finalize_processing(
             executions = await uow.task_execution_repo.list_for_processing_task(
                 processing_task_id
             )
-
+            has_running = any(
+                e.status == TaskExecutionStatus.RUNNING for e in executions
+            )
             has_failed = any(e.status == TaskExecutionStatus.FAILED for e in executions)
             has_warning = any(
                 e.status == TaskExecutionStatus.WARNING for e in executions
@@ -553,6 +553,9 @@ def finalize_processing(
             elif has_warning:
                 task_status = ProcessingTaskStatus.SUCCESS
                 file_status = FileStatus.WARNING
+            elif has_running:
+                task_status = ProcessingTaskStatus.FAILED
+                file_status = FileStatus.FAILED
             else:
                 task_status = ProcessingTaskStatus.SUCCESS
                 file_status = FileStatus.OK
