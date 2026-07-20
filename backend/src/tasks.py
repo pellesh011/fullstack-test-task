@@ -18,21 +18,9 @@ from src.domain.enums import (
 from src.domain.entities.processing_task import ProcessingTask
 from src.domain.entities.task_execution import TaskExecution
 from src.domain.interfaces.file_storage import FileStorage
+from src.domain.interfaces.unit_of_work import UnitOfWork
 from src.infrastructure import DatabaseSessionManager
-from src.infrastructure.database.mappers.file_mapper import FileMapper
-from src.infrastructure.database.mappers.processing_task_mapper import (
-    ProcessingTaskMapper,
-)
-from src.infrastructure.database.mappers.task_execution_mapper import (
-    TaskExecutionMapper,
-)
-from src.infrastructure.repositories.file_repository import SQLFileRepository
-from src.infrastructure.repositories.processing_task_repository import (
-    SQLProcessingTaskRepository,
-)
-from src.infrastructure.repositories.task_execution_repository import (
-    SQLTaskExecutionRepository,
-)
+from src.infrastructure.database.unit_of_work import SQLUnitOfWork
 from src.infrastructure.storage.local_file_storage import LocalFileStorage
 
 logger = logging.getLogger(__name__)
@@ -66,6 +54,12 @@ def _shutdown_worker_loop(**kwargs: Any) -> None:  # pyright: ignore[reportUnuse
         _worker_loop = None
 
 
+async def _get_uow() -> UnitOfWork:
+    """Get a UnitOfWork for the current operation."""
+    uow = SQLUnitOfWork(_db)
+    return uow
+
+
 async def _save_task_execution(
     processing_task_id: int,
     processor: ProcessorType,
@@ -77,16 +71,16 @@ async def _save_task_execution(
     execution_id: int | None = None,
 ) -> int:
     """Save or update a task execution record. Returns the execution id."""
-    async with _db.session() as session:
-        repo = SQLTaskExecutionRepository(session, TaskExecutionMapper())
+    uow = await _get_uow()
+    async with uow:
         if execution_id is not None:
-            existing = await repo.get_by_id(execution_id)
+            existing = await uow.task_execution_repo.get_by_id(execution_id)
             if existing:
                 existing.status = status
                 existing.details = details
                 existing.finished_at = finished_at
                 existing.duration_ms = duration_ms
-                saved = await repo.save(existing)
+                saved = await uow.task_execution_repo.save(existing)
                 assert saved.id is not None
                 return saved.id
         execution = TaskExecution(
@@ -98,7 +92,7 @@ async def _save_task_execution(
             finished_at=finished_at,
             duration_ms=duration_ms,
         )
-        saved = await repo.save(execution)
+        saved = await uow.task_execution_repo.save(execution)
         assert saved.id is not None
         return saved.id
 
@@ -106,9 +100,9 @@ async def _save_task_execution(
 async def _update_processing_task_status(
     processing_task_id: int, status: ProcessingTaskStatus, error: str | None = None
 ) -> None:
-    async with _db.session() as session:
-        task_repo = SQLProcessingTaskRepository(session, ProcessingTaskMapper())
-        task = await task_repo.get_by_id(processing_task_id)
+    uow = await _get_uow()
+    async with uow:
+        task = await uow.processing_task_repo.get_by_id(processing_task_id)
         if task:
             task.status = status
             if error:
@@ -117,16 +111,16 @@ async def _update_processing_task_status(
                 task.started_at = datetime.now()
             if status in (ProcessingTaskStatus.SUCCESS, ProcessingTaskStatus.FAILED):
                 task.finished_at = datetime.now()
-            await task_repo.save(task)
+            await uow.processing_task_repo.save(task)
 
 
 async def _update_file_status(file_id: str, status: FileStatus) -> None:
-    async with _db.session() as session:
-        file_repo = SQLFileRepository(session, FileMapper())
-        file_item = await file_repo.get_by_id(file_id)
+    uow = await _get_uow()
+    async with uow:
+        file_item = await uow.file_repo.get_by_id(file_id)
         if file_item:
             file_item.status = status
-            await file_repo.save(file_item)
+            await uow.file_repo.save(file_item)
 
 
 @celery_app.task(bind=True)
@@ -135,15 +129,14 @@ def metadata_extract(self: Any, processing_task_id: int) -> dict[str, Any]:
     loop = _get_worker_loop()
 
     async def _run():
-        async with _db.session() as session:
-            task_repo = SQLProcessingTaskRepository(session, ProcessingTaskMapper())
-            task = await task_repo.get_by_id(processing_task_id)
+        uow = await _get_uow()
+        async with uow:
+            task = await uow.processing_task_repo.get_by_id(processing_task_id)
             if not task:
                 logger.warning("ProcessingTask %s not found", processing_task_id)
                 return {}
 
-            file_repo = SQLFileRepository(session, FileMapper())
-            file_item = await file_repo.get_by_id(task.file_id)
+            file_item = await uow.file_repo.get_by_id(task.file_id)
             if not file_item:
                 logger.warning("File %s not found", task.file_id)
                 return {}
@@ -196,7 +189,8 @@ def metadata_extract(self: Any, processing_task_id: int) -> dict[str, Any]:
 
                 # Update file metadata
                 file_item.metadata = metadata
-                await file_repo.save(file_item)
+                await uow.file_repo.save(file_item)
+                await uow.commit()
 
                 return {"status": "success", "metadata": metadata}
 
@@ -225,14 +219,13 @@ def size_check(self: Any, processing_task_id: int) -> dict[str, Any]:
     loop = _get_worker_loop()
 
     async def _run():
-        async with _db.session() as session:
-            task_repo = SQLProcessingTaskRepository(session, ProcessingTaskMapper())
-            task = await task_repo.get_by_id(processing_task_id)
+        uow = await _get_uow()
+        async with uow:
+            task = await uow.processing_task_repo.get_by_id(processing_task_id)
             if not task:
                 return {}
 
-            file_repo = SQLFileRepository(session, FileMapper())
-            file_item = await file_repo.get_by_id(task.file_id)
+            file_item = await uow.file_repo.get_by_id(task.file_id)
             if not file_item:
                 return {}
 
@@ -301,14 +294,13 @@ def extension_validator(self: Any, processing_task_id: int) -> dict[str, Any]:
     loop = _get_worker_loop()
 
     async def _run():
-        async with _db.session() as session:
-            task_repo = SQLProcessingTaskRepository(session, ProcessingTaskMapper())
-            task = await task_repo.get_by_id(processing_task_id)
+        uow = await _get_uow()
+        async with uow:
+            task = await uow.processing_task_repo.get_by_id(processing_task_id)
             if not task:
                 return {}
 
-            file_repo = SQLFileRepository(session, FileMapper())
-            file_item = await file_repo.get_by_id(task.file_id)
+            file_item = await uow.file_repo.get_by_id(task.file_id)
             if not file_item:
                 return {}
 
@@ -378,14 +370,13 @@ def mime_validate(self: Any, processing_task_id: int) -> dict[str, Any]:
     loop = _get_worker_loop()
 
     async def _run():
-        async with _db.session() as session:
-            task_repo = SQLProcessingTaskRepository(session, ProcessingTaskMapper())
-            task = await task_repo.get_by_id(processing_task_id)
+        uow = await _get_uow()
+        async with uow:
+            task = await uow.processing_task_repo.get_by_id(processing_task_id)
             if not task:
                 return {}
 
-            file_repo = SQLFileRepository(session, FileMapper())
-            file_item = await file_repo.get_by_id(task.file_id)
+            file_item = await uow.file_repo.get_by_id(task.file_id)
             if not file_item:
                 return {}
 
@@ -465,14 +456,13 @@ def antivirus_scan(self: Any, processing_task_id: int) -> dict[str, Any]:
     loop = _get_worker_loop()
 
     async def _run():
-        async with _db.session() as session:
-            task_repo = SQLProcessingTaskRepository(session, ProcessingTaskMapper())
-            task = await task_repo.get_by_id(processing_task_id)
+        uow = await _get_uow()
+        async with uow:
+            task = await uow.processing_task_repo.get_by_id(processing_task_id)
             if not task:
                 return {}
 
-            file_repo = SQLFileRepository(session, FileMapper())
-            file_item = await file_repo.get_by_id(task.file_id)
+            file_item = await uow.file_repo.get_by_id(task.file_id)
             if not file_item:
                 return {}
 
@@ -535,17 +525,14 @@ def finalize_processing(
     loop = _get_worker_loop()
 
     async def _run():
-        async with _db.session() as session:
-            task_repo = SQLProcessingTaskRepository(session, ProcessingTaskMapper())
-            task = await task_repo.get_by_id(processing_task_id)
+        uow = await _get_uow()
+        async with uow:
+            task = await uow.processing_task_repo.get_by_id(processing_task_id)
             if not task:
                 logger.warning("ProcessingTask %s not found", processing_task_id)
                 return {}
 
-            task_execution_repo = SQLTaskExecutionRepository(
-                session, TaskExecutionMapper()
-            )
-            executions = await task_execution_repo.list_for_processing_task(
+            executions = await uow.task_execution_repo.list_for_processing_task(
                 processing_task_id
             )
 
@@ -604,20 +591,19 @@ def start_file_processing(
     loop = _get_worker_loop()
 
     async def _run():
-        async with _db.session() as session:
-            file_repo = SQLFileRepository(session, FileMapper())
-            file_item = await file_repo.get_by_id(file_id)
+        uow = await _get_uow()
+        async with uow:
+            file_item = await uow.file_repo.get_by_id(file_id)
             if not file_item:
                 logger.warning("File %s not found", file_id)
                 return {"error": "File not found"}
 
-            task_repo = SQLProcessingTaskRepository(session, ProcessingTaskMapper())
             processing_task = ProcessingTask(
                 file_id=file_id,
                 pipeline_type=PipelineType(pipeline_type),
                 status=ProcessingTaskStatus.PENDING,
             )
-            processing_task = await task_repo.save(processing_task)
+            processing_task = await uow.processing_task_repo.save(processing_task)
             assert processing_task.id is not None
 
             # Update file status to processing

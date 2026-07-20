@@ -32,7 +32,7 @@ class SQLProcessingTaskRepository(ProcessingTaskRepository):
 
     async def save(self, task: ProcessingTask) -> ProcessingTask:
         item = await self._session.merge(self._mapper.to_model(task))
-        await self._session.commit()
+        await self._session.flush()
         await self._session.refresh(item)
         return self._mapper.to_entity(item)
 
