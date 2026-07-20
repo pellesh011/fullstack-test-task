@@ -26,7 +26,7 @@ class SQLFileRepository(FileRepository):
 
     async def save(self, file: File) -> File:
         item = await self._session.merge(self._mapper.to_model(file))
-        await self._session.commit()
+        await self._session.flush()
         await self._session.refresh(item)
         return self._mapper.to_entity(item)
 
@@ -34,12 +34,3 @@ class SQLFileRepository(FileRepository):
         item = await self._session.get(FileModel, file.id)
         if item:
             await self._session.delete(item)
-
-    async def flush(self) -> None:
-        await self._session.flush()
-
-    async def rollback(self) -> None:
-        await self._session.rollback()
-
-    async def commit(self) -> None:
-        await self._session.commit()

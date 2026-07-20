@@ -7,15 +7,11 @@ from src.application.services.file_service import FileService
 from src.domain.interfaces.file_storage import FileStorage
 from src.domain.interfaces.repositories import FileRepository, TaskExecutionRepository
 from src.domain.interfaces.task_dispatcher import TaskDispatcher
-from src.infrastructure.database.mappers.file_mapper import FileMapper
-from src.infrastructure.database.mappers.task_execution_mapper import (
-    TaskExecutionMapper,
-)
+from src.domain.interfaces.unit_of_work import UnitOfWork
 from src.infrastructure.database import DatabaseSessionManager
+from src.infrastructure.database.mappers.file_mapper import FileMapper
+from src.infrastructure.database.unit_of_work import SQLUnitOfWork
 from src.infrastructure.repositories.file_repository import SQLFileRepository
-from src.infrastructure.repositories.task_execution_repository import (
-    SQLTaskExecutionRepository,
-)
 from src.infrastructure.storage.local_file_storage import LocalFileStorage
 from src.infrastructure.task_dispatcher import CeleryTaskDispatcher
 from src.core.config import settings
@@ -42,19 +38,30 @@ def get_task_dispatcher() -> TaskDispatcher:
     return _task_dispatcher
 
 
+async def get_unit_of_work() -> AsyncGenerator[UnitOfWork, None]:
+    uow = SQLUnitOfWork(_manager)
+    async with uow:
+        yield uow
+
+
+async def get_uow() -> AsyncGenerator[UnitOfWork, None]:
+    async for uow in get_unit_of_work():
+        yield uow
+
+
 def get_file_service(
-    file_repo: FileRepository = Depends(get_file_repo),
+    uow: UnitOfWork = Depends(get_uow),
     file_storage: FileStorage = Depends(get_file_storage),
     task_dispatcher: TaskDispatcher = Depends(get_task_dispatcher),
 ) -> FileService:
     return FileService(
-        file_repo=file_repo,
+        uow=uow,
         file_storage=file_storage,
         task_dispatcher=task_dispatcher,
     )
 
 
 def get_task_execution_repo(
-    session: AsyncSession = Depends(get_session),
+    uow: UnitOfWork = Depends(get_uow),
 ) -> TaskExecutionRepository:
-    return SQLTaskExecutionRepository(session, TaskExecutionMapper())
+    return uow.task_execution_repo

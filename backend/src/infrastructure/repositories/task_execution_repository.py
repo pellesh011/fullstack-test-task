@@ -25,7 +25,7 @@ class SQLTaskExecutionRepository(TaskExecutionRepository):
 
     async def save(self, execution: TaskExecution) -> TaskExecution:
         item = await self._session.merge(self._mapper.to_model(execution))
-        await self._session.commit()
+        await self._session.flush()
         await self._session.refresh(item)
         return self._mapper.to_entity(item)
 
@@ -42,7 +42,7 @@ class SQLTaskExecutionRepository(TaskExecutionRepository):
     async def save_all(self, executions: list[TaskExecution]) -> None:
         models = [self._mapper.to_model(e) for e in executions]
         self._session.add_all(models)
-        await self._session.commit()
+        await self._session.flush()
 
     async def list_non_success(self) -> Sequence[TaskExecutionIssue]:
         result = await self._session.execute(
@@ -76,7 +76,7 @@ class SQLTaskExecutionRepository(TaskExecutionRepository):
             item.status = TaskExecutionStatus(status)
             if details is not None:
                 item.details = details
-            await self._session.commit()
+            await self._session.flush()
             await self._session.refresh(item)
             return self._mapper.to_entity(item)
         return None
