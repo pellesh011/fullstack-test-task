@@ -267,6 +267,8 @@ def size_check(self: Any, processing_task_id: int) -> dict[str, Any]:
                     execution_id=execution_id,
                 )
 
+                await uow.commit()
+
                 return {"status": "success", "details": details}
 
             except Exception as e:
@@ -342,6 +344,7 @@ def extension_validator(self: Any, processing_task_id: int) -> dict[str, Any]:
                     duration_ms=duration_ms,
                     execution_id=execution_id,
                 )
+                await uow.commit()
 
                 return {"status": "success", "details": details}
 
@@ -428,6 +431,7 @@ def mime_validate(self: Any, processing_task_id: int) -> dict[str, Any]:
                     duration_ms=duration_ms,
                     execution_id=execution_id,
                 )
+                await uow.commit()
 
                 return {"status": "success", "details": details}
 
@@ -495,6 +499,7 @@ def antivirus_scan(self: Any, processing_task_id: int) -> dict[str, Any]:
                     duration_ms=duration_ms,
                     execution_id=execution_id,
                 )
+                await uow.commit()
 
                 return {"status": "success", "details": details}
 
