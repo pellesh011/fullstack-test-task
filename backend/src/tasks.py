@@ -94,6 +94,7 @@ async def _save_task_execution(
         )
         saved = await uow.task_execution_repo.save(execution)
         assert saved.id is not None
+        await uow.commit()
         return saved.id
 
 
