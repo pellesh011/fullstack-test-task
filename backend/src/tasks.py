@@ -606,6 +606,9 @@ def start_file_processing(
             processing_task = await uow.processing_task_repo.save(processing_task)
             assert processing_task.id is not None
 
+            # Commit the processing task before updating file status and dispatching workflow
+            await uow.commit()
+
             # Update file status to processing
             await _update_file_status(file_id, FileStatus.PROCESSING)
 
