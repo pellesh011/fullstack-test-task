@@ -1,4 +1,3 @@
-from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from types import TracebackType
 from typing import Optional
@@ -106,12 +105,3 @@ class SQLUnitOfWork(UnitOfWork):
         if self._session_cm:
             return await self._session_cm.__aexit__(exc_type, exc_val, exc_tb)
         return None
-
-
-async def get_unit_of_work() -> AsyncGenerator[UnitOfWork, None]:
-    from src.infrastructure.database import DatabaseSessionManager
-
-    session_manager = DatabaseSessionManager()
-    uow = SQLUnitOfWork(session_manager)
-    async with uow:
-        yield uow
