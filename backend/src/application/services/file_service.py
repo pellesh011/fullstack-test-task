@@ -2,14 +2,14 @@ from uuid import uuid4
 from pathlib import Path
 import logging
 import magic
-from typing import Any
+from typing import Any, AsyncGenerator
 
 from src.core.config import settings
 from src.domain.entities.file import File
 from src.domain.enums import FileStatus
 from src.domain.interfaces.file_storage import FileStorage
-from src.domain.interfaces.repositories import FileRepository
 from src.domain.interfaces.task_dispatcher import TaskDispatcher
+from src.domain.interfaces.unit_of_work import UnitOfWork
 from src.domain.exceptions import (
     FileNotFoundError,
     FileEmptyError,
@@ -22,19 +22,19 @@ logger = logging.getLogger(__name__)
 class FileService:
     def __init__(
         self,
-        file_repo: FileRepository,
+        uow: UnitOfWork,
         file_storage: FileStorage,
         task_dispatcher: TaskDispatcher,
     ):
-        self._file_repo = file_repo
+        self._uow = uow
         self._file_storage = file_storage
         self._task_dispatcher = task_dispatcher
 
     async def list_files(self) -> list[File]:
-        return list(await self._file_repo.list_all())
+        return list(await self._uow.file_repo.list_all())
 
     async def get_file(self, file_id: str) -> File:
-        file_item = await self._file_repo.get_by_id(file_id)
+        file_item = await self._uow.file_repo.get_by_id(file_id)
         if not file_item:
             raise FileNotFoundError(f"File with id {file_id} not found")
         return file_item
@@ -51,20 +51,40 @@ class FileService:
                 settings.max_file_size_warning_mb,
             )
 
-        content = await upload_file.read()
-        if not content:
-            raise FileEmptyError("File is empty")
-
         file_id = str(uuid4())
         suffix = Path(upload_file.filename or "").suffix
         stored_name = f"{file_id}{suffix}"
 
-        await self._file_storage.save(stored_name, content)
+        # Ensure file pointer is at the beginning
+        try:
+            upload_file.file.seek(0)
+        except Exception:
+            pass
+
+        # Read first chunk eagerly to detect MIME and check emptiness
+        chunk_size = 8192
+        first_chunk = await upload_file.read(chunk_size)
+        if not first_chunk:
+            raise FileEmptyError("File is empty")
 
         try:
-            detected_mime = magic.from_buffer(content, mime=True)
+            detected_mime = magic.from_buffer(first_chunk, mime=True)
         except magic.MagicException:
             detected_mime = upload_file.content_type or "application/octet-stream"
+
+        total_size = len(first_chunk)
+
+        async def file_stream() -> AsyncGenerator[bytes, None]:
+            nonlocal total_size
+            yield first_chunk
+            while True:
+                chunk = await upload_file.read(chunk_size)
+                if not chunk:
+                    break
+                total_size += len(chunk)
+                yield chunk
+
+        await self._file_storage.save_stream(stored_name, file_stream())
 
         file_item = File(
             id=file_id,
@@ -73,11 +93,12 @@ class FileService:
             stored_name=stored_name,
             mime_type=detected_mime,
             original_mime_type=upload_file.content_type,
-            size=len(content),
+            size=total_size,
             status=FileStatus.NEW,
         )
         try:
-            saved = await self._file_repo.save(file_item)
+            saved = await self._uow.file_repo.save(file_item)
+            await self._uow.commit()
             # Start async processing pipeline
             self._task_dispatcher.dispatch_start_file_processing(file_id)
         except Exception:
@@ -87,27 +108,29 @@ class FileService:
         return saved
 
     async def update_file(self, file_id: str, title: str) -> File:
-        file_item = await self._file_repo.get_by_id(file_id)
+        file_item = await self._uow.file_repo.get_by_id(file_id)
         if not file_item:
             raise FileNotFoundError(f"File with id {file_id} not found")
         file_item.title = title
-        return await self._file_repo.save(file_item)
+        saved = await self._uow.file_repo.save(file_item)
+        await self._uow.commit()
+        return saved
 
     async def delete_file(self, file_id: str) -> None:
-        file_item = await self._file_repo.get_by_id(file_id)
+        file_item = await self._uow.file_repo.get_by_id(file_id)
         if not file_item:
             raise FileNotFoundError(f"File with id {file_id} not found")
 
-        await self._file_repo.delete(file_item)
-        await self._file_repo.flush()
+        await self._uow.file_repo.delete(file_item)
+        await self._uow.flush()
 
         try:
             await self._file_storage.delete(file_item.stored_name)
         except Exception:
-            await self._file_repo.rollback()
+            await self._uow.rollback()
             raise
 
-        await self._file_repo.commit()
+        await self._uow.commit()
 
     def get_storage_path(self, file_item: File) -> Path:
         path = self._file_storage.get_path(file_item.stored_name)

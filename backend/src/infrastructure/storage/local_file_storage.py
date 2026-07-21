@@ -1,6 +1,7 @@
 import aiofiles
 import aiofiles.os
 from pathlib import Path
+from typing import AsyncGenerator
 
 from src.domain.interfaces.file_storage import FileStorage
 
@@ -21,6 +22,15 @@ class LocalFileStorage(FileStorage):
         p = self._path(stored_name)
         async with aiofiles.open(p, "wb") as f:
             await f.write(content)
+        return p
+
+    async def save_stream(
+        self, stored_name: str, stream: AsyncGenerator[bytes, None]
+    ) -> Path:
+        p = self._path(stored_name)
+        async with aiofiles.open(p, "wb") as f:
+            async for chunk in stream:
+                await f.write(chunk)
         return p
 
     def get_path(self, stored_name: str) -> Path:
@@ -46,3 +56,25 @@ class LocalFileStorage(FileStorage):
         p = self._path(stored_name)
         async with aiofiles.open(p, "r", encoding="utf-8", errors="ignore") as f:
             return await f.read()
+
+    async def read_bytes_stream(
+        self, stored_name: str, chunk_size: int = 8192
+    ) -> AsyncGenerator[bytes, None]:
+        p = self._path(stored_name)
+        async with aiofiles.open(p, "rb") as f:
+            while True:
+                chunk = await f.read(chunk_size)
+                if not chunk:
+                    break
+                yield chunk
+
+    async def read_text_stream(
+        self, stored_name: str, chunk_size: int = 8192
+    ) -> AsyncGenerator[str, None]:
+        p = self._path(stored_name)
+        async with aiofiles.open(p, "r", encoding="utf-8", errors="ignore") as f:
+            while True:
+                chunk = await f.read(chunk_size)
+                if not chunk:
+                    break
+                yield chunk

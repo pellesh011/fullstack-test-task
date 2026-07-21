@@ -21,15 +21,6 @@ class FileRepository(ABC):
     @abstractmethod
     async def delete(self, file: File) -> None: ...
 
-    @abstractmethod
-    async def flush(self) -> None: ...
-
-    @abstractmethod
-    async def rollback(self) -> None: ...
-
-    @abstractmethod
-    async def commit(self) -> None: ...
-
 
 class ProcessingTaskRepository(ABC):
     @abstractmethod
