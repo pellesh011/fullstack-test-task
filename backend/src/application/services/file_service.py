@@ -2,7 +2,7 @@ from uuid import uuid4
 from pathlib import Path
 import logging
 import magic
-from typing import Any
+from typing import Any, AsyncGenerator
 
 from src.core.config import settings
 from src.domain.entities.file import File
@@ -51,20 +51,40 @@ class FileService:
                 settings.max_file_size_warning_mb,
             )
 
-        content = await upload_file.read()
-        if not content:
-            raise FileEmptyError("File is empty")
-
         file_id = str(uuid4())
         suffix = Path(upload_file.filename or "").suffix
         stored_name = f"{file_id}{suffix}"
 
-        await self._file_storage.save(stored_name, content)
+        # Ensure file pointer is at the beginning
+        try:
+            upload_file.file.seek(0)
+        except Exception:
+            pass
+
+        # Read first chunk eagerly to detect MIME and check emptiness
+        chunk_size = 8192
+        first_chunk = await upload_file.read(chunk_size)
+        if not first_chunk:
+            raise FileEmptyError("File is empty")
 
         try:
-            detected_mime = magic.from_buffer(content, mime=True)
+            detected_mime = magic.from_buffer(first_chunk, mime=True)
         except magic.MagicException:
             detected_mime = upload_file.content_type or "application/octet-stream"
+
+        total_size = len(first_chunk)
+
+        async def file_stream() -> AsyncGenerator[bytes, None]:
+            nonlocal total_size
+            yield first_chunk
+            while True:
+                chunk = await upload_file.read(chunk_size)
+                if not chunk:
+                    break
+                total_size += len(chunk)
+                yield chunk
+
+        await self._file_storage.save_stream(stored_name, file_stream())
 
         file_item = File(
             id=file_id,
@@ -73,7 +93,7 @@ class FileService:
             stored_name=stored_name,
             mime_type=detected_mime,
             original_mime_type=upload_file.content_type,
-            size=len(content),
+            size=total_size,
             status=FileStatus.NEW,
         )
         try:
